@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
@@ -12,12 +11,11 @@ const TABS = [
 
 export function NavBar() {
   const pathname = usePathname();
-  const router = useRouter();
   const supabase = createClient();
 
   async function cerrarSesion() {
     await supabase.auth.signOut();
-    router.push("/login");
+    window.location.href = "/login";
   }
 
   return (
@@ -37,18 +35,17 @@ export function NavBar() {
           {TABS.map((tab) => {
             const activo = pathname?.startsWith(tab.href);
             return (
-              <Link
+              
                 key={tab.href}
                 href={tab.href}
                 className="text-sm px-3 py-1.5 rounded-md"
                 style={{
                   color: activo ? "#3B82F6" : "var(--text-secondary)",
-                  background: activo ? "var(--status-on-track-bg, transparent)" : "transparent",
                   fontWeight: activo ? 500 : 400,
                 }}
               >
                 {tab.label}
-              </Link>
+              </a>
             );
           })}
         </nav>
