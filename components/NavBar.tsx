@@ -35,7 +35,11 @@ export function NavBar() {
           {TABS.map((tab) => {
             const activo = pathname?.startsWith(tab.href);
             return (
-              
+              // Se usa <a> normal (no <Link>) a propósito: fuerza una
+              // recarga completa de la página en cada clic, evitando
+              // que el navegador reutilice una respuesta vieja guardada
+              // en caché de cuando todavía no había sesión iniciada.
+              <a
                 key={tab.href}
                 href={tab.href}
                 className="text-sm px-3 py-1.5 rounded-md"
