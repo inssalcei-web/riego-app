@@ -1,0 +1,66 @@
+{
+  "_descripcion": "Fuente de verdad del flujo operativo. Usado por el motor de flujo (módulo 09), el módulo de roles (07) y como base para la futura importación desde Excel (19). No modificar el orden sin actualizar también el módulo 09.",
+
+  "fases": [
+    { "id": "fase_1", "orden": 1, "nombre": "Inicio y relevamiento" },
+    { "id": "fase_2", "orden": 2, "nombre": "Diseño y documentación técnica" },
+    { "id": "fase_3", "orden": 3, "nombre": "Aprobación y postulación" },
+    { "id": "fase_4", "orden": 4, "nombre": "Financiamiento y contratación" },
+    { "id": "fase_5", "orden": 5, "nombre": "Cierre" }
+  ],
+
+  "roles": [
+    { "id": "gerente_general", "nombre": "Gerente general" },
+    { "id": "administrador", "nombre": "Administrador" },
+    { "id": "ingeniero_proyectos", "nombre": "Ingeniero(a) de proyectos" },
+    { "id": "encargado_legal", "nombre": "Encargado(a) área legal" }
+  ],
+
+  "usuarios": [
+    { "id": "luis_aguirre", "nombre": "Luis Aguirre", "rol_id": "gerente_general" },
+    { "id": "patricio_gatica", "nombre": "Patricio Gatica", "rol_id": "administrador" },
+    { "id": "angelo_bain", "nombre": "Angelo Bain", "rol_id": "administrador" },
+    { "id": "oliver_garcia", "nombre": "Oliver García", "rol_id": "ingeniero_proyectos" },
+    { "id": "valentina_oyarzun", "nombre": "Valentina Oyarzún", "rol_id": "ingeniero_proyectos" },
+    { "id": "elizabeth_karstulovic", "nombre": "Elizabeth Karstulovic", "rol_id": "encargado_legal" }
+  ],
+
+  "_nota_asignacion": "Cuando un rol tiene más de un usuario (administrador, ingeniero_proyectos), la persona específica se define por proyecto al momento de su creación, no de forma automática. Cada etapa de cada proyecto queda ligada a un usuario puntual, nunca solo a un rol.",
+
+  "etapas": [
+    { "orden": 1,  "nombre": "Aviso de nuevo proyecto",                       "fase_id": "fase_1", "rol_id": "gerente_general" },
+    { "orden": 2,  "nombre": "Visita técnica",                                "fase_id": "fase_1", "rol_id": "gerente_general" },
+    { "orden": 3,  "nombre": "Ingreso proyecto al software",                  "fase_id": "fase_1", "rol_id": "administrador" },
+    { "orden": 4,  "nombre": "Revisión de bases",                             "fase_id": "fase_1", "rol_id": "ingeniero_proyectos" },
+    { "orden": 5,  "nombre": "Solicitud de documentos legales",               "fase_id": "fase_1", "rol_id": "encargado_legal" },
+    { "orden": 6,  "nombre": "Levantamiento topográfico",                     "fase_id": "fase_1", "rol_id": "ingeniero_proyectos" },
+    { "orden": 7,  "nombre": "Análisis de suelo",                             "fase_id": "fase_1", "rol_id": "ingeniero_proyectos" },
+    { "orden": 8,  "nombre": "Prueba de bombeo",                              "fase_id": "fase_1", "rol_id": "ingeniero_proyectos" },
+    { "orden": 9,  "nombre": "Balance tierra - agua - cultivo",               "fase_id": "fase_1", "rol_id": "ingeniero_proyectos" },
+
+    { "orden": 10, "nombre": "Generación de planos",                          "fase_id": "fase_2", "rol_id": "ingeniero_proyectos" },
+    { "orden": 11, "nombre": "Anexos técnicos 9.1, 9.2, 9.3 etc",             "fase_id": "fase_2", "rol_id": "ingeniero_proyectos" },
+    { "orden": 12, "nombre": "Diseño fotovoltaico",                           "fase_id": "fase_2", "rol_id": "ingeniero_proyectos" },
+    { "orden": 13, "nombre": "Anexos legales",                                "fase_id": "fase_2", "rol_id": "encargado_legal" },
+    { "orden": 14, "nombre": "Diseño civil",                                  "fase_id": "fase_2", "rol_id": "ingeniero_proyectos" },
+    { "orden": 15, "nombre": "Diseño hidráulico",                             "fase_id": "fase_2", "rol_id": "ingeniero_proyectos" },
+    { "orden": 16, "nombre": "Presupuesto",                                   "fase_id": "fase_2", "rol_id": "ingeniero_proyectos" },
+
+    { "orden": 17, "nombre": "Visto bueno presupuesto",                       "fase_id": "fase_3", "rol_id": "gerente_general" },
+    { "orden": 18, "nombre": "Postulación",                                   "fase_id": "fase_3", "rol_id": "ingeniero_proyectos" },
+    { "orden": 19, "nombre": "Observaciones técnicas",                        "fase_id": "fase_3", "rol_id": "ingeniero_proyectos" },
+    { "orden": 20, "nombre": "Observaciones legales",                         "fase_id": "fase_3", "rol_id": "encargado_legal" },
+    { "orden": 21, "nombre": "Revisión de resultados",                        "fase_id": "fase_3", "rol_id": "ingeniero_proyectos" },
+    { "orden": 22, "nombre": "Envío de carpetas finales a terreno",           "fase_id": "fase_3", "rol_id": "ingeniero_proyectos" },
+
+    { "orden": 23, "nombre": "Gestión de financiamiento",                     "fase_id": "fase_4", "rol_id": "gerente_general" },
+    { "orden": 24, "nombre": "Contrato de obras",                             "fase_id": "fase_4", "rol_id": "administrador" },
+    { "orden": 25, "nombre": "Compra materiales",                             "fase_id": "fase_4", "rol_id": "gerente_general" },
+    { "orden": 26, "nombre": "Contratación de subcontratos",                  "fase_id": "fase_4", "rol_id": "gerente_general" },
+    { "orden": 27, "nombre": "Contacto con inspectores Indap y CNR",          "fase_id": "fase_4", "rol_id": "gerente_general" },
+
+    { "orden": 28, "nombre": "Facturación y documentos administrativos",      "fase_id": "fase_5", "rol_id": "administrador" },
+    { "orden": 29, "nombre": "Recepción de dinero",                           "fase_id": "fase_5", "rol_id": "gerente_general" },
+    { "orden": 30, "nombre": "Cierre proyecto",                               "fase_id": "fase_5", "rol_id": "gerente_general" }
+  ]
+}

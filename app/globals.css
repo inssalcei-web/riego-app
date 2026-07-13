@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "./design-tokens.css";
+
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: "Inter", sans-serif;
+}
