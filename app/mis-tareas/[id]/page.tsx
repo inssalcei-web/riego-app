@@ -23,17 +23,22 @@ export default async function DetalleProyectoPage({
 
   const { data: proyecto } = await supabase
     .from("proyectos")
-    .select(`*, clientes ( nombre ), etapas_definicion ( id, nombre, orden )`)
+    .select("*")
     .eq("id", id)
     .single();
 
   if (!proyecto) notFound();
 
+  const [{ data: cliente }, { data: etapa }] = await Promise.all([
+    supabase.from("clientes").select("*").eq("id", proyecto.cliente_id).single(),
+    supabase.from("etapas_definicion").select("*").eq("id", proyecto.etapa_actual_id).single(),
+  ]);
+
   // Trae el checklist de la etapa actual, uniendo definición + instancia del proyecto
   const { data: itemsDefinicion } = await supabase
     .from("checklist_items_definicion")
     .select("*")
-    .eq("etapa_id", proyecto.etapas_definicion.id)
+    .eq("etapa_id", etapa!.id)
     .order("orden");
 
   const { data: instancias } = await supabase
@@ -57,8 +62,7 @@ export default async function DetalleProyectoPage({
         <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}>
           <p className="font-medium text-base mb-0.5">{proyecto.nombre}</p>
           <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
-            {proyecto.clientes?.nombre} · Etapa {proyecto.etapas_definicion.orden} de 30 ·{" "}
-            {proyecto.etapas_definicion.nombre}
+            {cliente?.nombre} · Etapa {etapa?.orden} de 30 · {etapa?.nombre}
           </p>
 
           <ChecklistPanel proyectoId={id} itemsIniciales={items} usuarioId={usuario.id} />
