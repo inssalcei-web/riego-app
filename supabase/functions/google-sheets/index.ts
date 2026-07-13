@@ -1,11 +1,9 @@
 // ============================================================
 // Módulo 16 — Integración Google Sheets
 //
-// Principio de diseño: esta integración es un "consumidor" de
-// eventos, no una dependencia del motor de flujo. Si Google
-// Sheets falla o está caído, el proyecto igual avanza de etapa
-// con normalidad — este módulo solo deja constancia externa
-// para la construcción futura de KPIs.
+// Recibe el movimiento desde complete-stage y lo agrega como
+// fila nueva en la planilla. Si falla, no rompe nada más — solo
+// queda registrado en los logs de esta función.
 // ============================================================
 
 interface MovimientoSheet {
@@ -22,8 +20,9 @@ interface MovimientoSheet {
 const SHEET_ID = Deno.env.get("GOOGLE_SHEET_ID")!;
 const SHEET_RANGE = "Movimientos!A:H";
 
-export async function registrarMovimientoEnSheet(mov: MovimientoSheet) {
+Deno.serve(async (req: Request) => {
   try {
+    const mov: MovimientoSheet = await req.json();
     const accessToken = await obtenerTokenGoogle();
 
     const fila = [
@@ -50,23 +49,85 @@ export async function registrarMovimientoEnSheet(mov: MovimientoSheet) {
     );
 
     if (!res.ok) {
-      await registrarFalloIntegracion("google_sheets", await res.text());
+      console.error("Error de Google Sheets:", await res.text());
+      return new Response(JSON.stringify({ ok: false }), { status: 502 });
     }
+
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (err) {
-    // Nunca se propaga hacia el motor de flujo — se registra y sigue.
-    await registrarFalloIntegracion("google_sheets", String(err));
+    console.error("Error en integración google-sheets:", err);
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+      status: 500,
+    });
   }
-}
+});
 
+// Autenticación con la cuenta de servicio (JWT firmado con la private key)
 async function obtenerTokenGoogle(): Promise<string> {
-  // Autenticación vía cuenta de servicio de Google (Service Account),
-  // configurada aparte en las variables de entorno de Supabase.
-  // Detalle de implementación fuera del alcance de este módulo.
-  throw new Error("Pendiente: configurar credenciales de cuenta de servicio de Google");
+  const clientEmail = Deno.env.get("GOOGLE_CLIENT_EMAIL")!;
+  const privateKey = Deno.env.get("GOOGLE_PRIVATE_KEY")!.replace(/\\n/g, "\n");
+
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const encode = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+
+  const unsigned = `${encode(header)}.${encode(claim)}`;
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(privateKey),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
+  const signedJwt = `${unsigned}.${arrayBufferToBase64Url(signature)}`;
+
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: signedJwt,
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) {
+    throw new Error("No se pudo obtener token de Google: " + JSON.stringify(tokenData));
+  }
+  return tokenData.access_token;
 }
 
-async function registrarFalloIntegracion(integracion: string, detalle: string) {
-  console.error(`[integracion:${integracion}] fallo`, detalle);
-  // Se guarda también en la tabla `auditoria` con accion = 'fallo_integracion'
-  // para poder revisarlo después sin perder visibilidad del problema.
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace("-----BEGIN PRIVATE KEY-----", "")
+    .replace("-----END PRIVATE KEY-----", "")
+    .replace(/\s/g, "");
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }

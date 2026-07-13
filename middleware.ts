@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
+// Este middleware SOLO se encarga de mantener la sesión fresca
+// (renovar el token si está por vencer). La protección de rutas
+// (mandar al login si no hay sesión) la hace cada página por su
+// cuenta — así se evita un problema del entorno "Edge" donde este
+// archivo corre, que causaba redirecciones incorrectas a /login.
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -25,6 +30,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Solo refresca el token si existe; no redirige a nadie.
   await supabase.auth.getUser();
 
   return response;
