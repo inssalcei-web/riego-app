@@ -4,13 +4,20 @@ import { obtenerMisProyectos } from "@/lib/data/proyectos";
 import { ProjectCard } from "@/components/ProjectCard";
 import { NavBar } from "@/components/NavBar";
 
+export const dynamic = "force-dynamic";
+
 export default async function MisTareasPage() {
   const supabase = await createClient();
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+
+  if (!user) {
+    console.error("[mis-tareas] Sin usuario de sesión. Error de auth:", authError);
+    redirect("/login");
+  }
 
   const { data: usuario, error: errorUsuario } = await supabase
     .from("usuarios")
@@ -19,6 +26,7 @@ export default async function MisTareasPage() {
     .single();
 
   if (errorUsuario || !usuario) {
+    console.error("[mis-tareas] No se encontró usuario en tabla `usuarios`:", errorUsuario);
     return (
       <div className="min-h-screen">
         <NavBar />
