@@ -1,16 +1,10 @@
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerUsuarioActual } from "@/lib/data/proyectos";
-import { ChecklistPanel } from "@/components/ChecklistPanel";
+import { obtenerMisProyectos } from "@/lib/data/proyectos";
+import { ProjectCard } from "@/components/ProjectCard";
 import { NavBar } from "@/components/NavBar";
-import { ChecklistItemConEstado } from "@/lib/types";
 
-export default async function DetalleProyectoPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+export default async function MisTareasPage() {
   const supabase = await createClient();
 
   const {
@@ -18,55 +12,51 @@ export default async function DetalleProyectoPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const usuario = await obtenerUsuarioActual(supabase);
-  if (!usuario) redirect("/login");
-
-  const { data: proyecto } = await supabase
-    .from("proyectos")
+  const { data: usuario, error: errorUsuario } = await supabase
+    .from("usuarios")
     .select("*")
-    .eq("id", id)
+    .eq("auth_user_id", user.id)
     .single();
 
-  if (!proyecto) notFound();
+  if (errorUsuario || !usuario) {
+    return (
+      <div className="min-h-screen">
+        <NavBar />
+        <main className="p-5 max-w-md mx-auto">
+          <p className="font-medium text-sm mb-2">No se pudo cargar tu usuario</p>
+          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+            Sesión conectada como: {user.email}
+          </p>
+          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+            ID de sesión (auth_user_id): {user.id}
+          </p>
+          <p className="text-xs" style={{ color: "var(--status-overdue-text)" }}>
+            Error de base de datos: {errorUsuario?.message ?? "sin datos"}
+          </p>
+        </main>
+      </div>
+    );
+  }
 
-  const [{ data: cliente }, { data: etapa }] = await Promise.all([
-    supabase.from("clientes").select("*").eq("id", proyecto.cliente_id).single(),
-    supabase.from("etapas_definicion").select("*").eq("id", proyecto.etapa_actual_id).single(),
-  ]);
-
-  // Trae el checklist de la etapa actual, uniendo definición + instancia del proyecto
-  const { data: itemsDefinicion } = await supabase
-    .from("checklist_items_definicion")
-    .select("*")
-    .eq("etapa_id", etapa!.id)
-    .order("orden");
-
-  const { data: instancias } = await supabase
-    .from("checklist_instancia")
-    .select("*")
-    .eq("proyecto_id", id);
-
-  const items: ChecklistItemConEstado[] = (itemsDefinicion ?? []).map((def) => {
-    const instancia = instancias?.find((i) => i.item_definicion_id === def.id);
-    return {
-      ...def,
-      instancia_id: instancia?.id ?? "",
-      completado: instancia?.completado ?? false,
-    };
-  });
+  const proyectos = await obtenerMisProyectos(supabase, usuario.id);
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-md mx-auto">
-        <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}>
-          <p className="font-medium text-base mb-0.5">{proyecto.nombre}</p>
-          <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
-            {cliente?.nombre} · Etapa {etapa?.orden} de 30 · {etapa?.nombre}
-          </p>
+        <p className="font-medium text-sm mb-4">
+          Mis tareas <span style={{ color: "var(--text-secondary)" }}>({proyectos.length})</span>
+        </p>
 
-          <ChecklistPanel proyectoId={id} itemsIniciales={items} usuarioId={usuario.id} />
-        </div>
+        {proyectos.length === 0 && (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            No tenés proyectos asignados en este momento.
+          </p>
+        )}
+
+        {proyectos.map((p) => (
+          <ProjectCard key={p.id} proyecto={p} />
+        ))}
       </main>
     </div>
   );
