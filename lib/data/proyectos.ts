@@ -2,48 +2,56 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { ProyectoConDetalle, calcularEstadoCumplimiento } from "@/lib/types";
 import flujoConfig from "@/lib/flujo-config.json";
 
-// Mapas rápidos en memoria a partir de la config real (30 etapas, fases, roles)
-const etapasPorId = new Map(
-  flujoConfig.etapas.map((e) => [e.orden, e]) // se resuelve por orden -> id real viene de la BD
-);
+// Se evita pedirle a Supabase que una las tablas automáticamente
+// (eso causaba el error PGRST201 por relaciones ambiguas). En vez
+// de eso, se traen las tablas por separado y se unen acá mismo,
+// en JavaScript — más simple y sin depender de que Supabase adivine
+// bien la relación correcta.
+
 const fasesPorId = new Map(flujoConfig.fases.map((f) => [f.id, f]));
 
-// Trae todos los proyectos activos con la info necesaria para el tablero Kanban
 export async function obtenerProyectosActivos(
   supabase: SupabaseClient
 ): Promise<ProyectoConDetalle[]> {
-  const { data, error } = await supabase
+  const { data: proyectos, error } = await supabase
     .from("proyectos")
-    .select(
-      `
-      *,
-      clientes ( nombre ),
-      etapas_definicion ( id, orden, nombre, fase_id ),
-      usuarios!proyectos_responsable_actual_id_fkey ( nombre )
-    `
-    )
+    .select("*")
     .eq("finalizado", false)
     .order("creado_en", { ascending: false });
 
   if (error) throw error;
+  if (!proyectos || proyectos.length === 0) return [];
 
-  return (data ?? []).map((p: any) => {
-    const fase = fasesPorId.get(p.etapas_definicion.fase_id);
+  const [{ data: clientes }, { data: etapas }, { data: usuarios }] = await Promise.all([
+    supabase.from("clientes").select("*"),
+    supabase.from("etapas_definicion").select("*"),
+    supabase.from("usuarios").select("*"),
+  ]);
+
+  const clientesPorId = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const etapasPorId = new Map((etapas ?? []).map((e) => [e.id, e]));
+  const usuariosPorId = new Map((usuarios ?? []).map((u) => [u.id, u]));
+
+  return proyectos.map((p: any) => {
+    const etapa = etapasPorId.get(p.etapa_actual_id);
+    const fase = etapa ? fasesPorId.get(etapa.fase_id) : undefined;
+    const cliente = clientesPorId.get(p.cliente_id);
+    const responsable = usuariosPorId.get(p.responsable_actual_id);
+
     return {
       ...p,
-      cliente_nombre: p.clientes?.nombre ?? "—",
-      etapa_nombre: p.etapas_definicion?.nombre ?? "—",
-      etapa_orden: p.etapas_definicion?.orden ?? 0,
-      fase_id: p.etapas_definicion?.fase_id ?? "",
+      cliente_nombre: cliente?.nombre ?? "—",
+      etapa_nombre: etapa?.nombre ?? "—",
+      etapa_orden: etapa?.orden ?? 0,
+      fase_id: etapa?.fase_id ?? "",
       fase_nombre: fase?.nombre ?? "—",
-      responsable_nombre: p.usuarios?.nombre ?? "—",
-      porcentaje_avance: Math.round((p.etapas_definicion.orden / 30) * 100),
+      responsable_nombre: responsable?.nombre ?? "—",
+      porcentaje_avance: Math.round(((etapa?.orden ?? 0) / 30) * 100),
       estado_cumplimiento: calcularEstadoCumplimiento(p.fecha_objetivo, p.finalizado),
     };
   });
 }
 
-// Trae solo los proyectos donde el usuario conectado es el responsable actual
 export async function obtenerMisProyectos(
   supabase: SupabaseClient,
   usuarioId: string
@@ -52,7 +60,6 @@ export async function obtenerMisProyectos(
   return todos.filter((p) => p.responsable_actual_id === usuarioId);
 }
 
-// Trae el usuario de la tabla `usuarios` correspondiente a la sesión de Supabase Auth
 export async function obtenerUsuarioActual(supabase: SupabaseClient) {
   const {
     data: { user },
