@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { completarEtapa as llamarCompletarEtapa } from "@/lib/complete-stage-client";
 import { CAMPOS_FORMULARIO_INGRESO } from "@/lib/formulario-ingreso-config";
 
 export function FormularioIngresoPanel({
@@ -47,14 +48,12 @@ export function FormularioIngresoPanel({
     // Guarda los datos actuales antes de intentar cerrar la etapa
     await supabase.from("proyectos").update({ datos_formulario: datos }).eq("id", proyectoId);
 
-    const { data, error } = await supabase.functions.invoke("complete-stage", {
-      body: { proyecto_id: proyectoId, usuario_id: usuarioId },
-    });
+    const resultado = await llamarCompletarEtapa(supabase, proyectoId, usuarioId);
 
     setEnviando(false);
 
-    if (error || !data?.ok) {
-      setError(data?.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
+    if (!resultado.ok) {
+      setError(resultado.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
       return;
     }
 

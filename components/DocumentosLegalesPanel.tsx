@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { completarEtapa as llamarCompletarEtapa } from "@/lib/complete-stage-client";
 import { DocumentoLegalCatalogo, ProyectoDocumentoLegal } from "@/lib/types";
 
 interface DocumentoSeleccionado extends ProyectoDocumentoLegal {
@@ -63,14 +64,12 @@ export function DocumentosLegalesPanel({
     setEnviando(true);
     setError(null);
 
-    const { data, error } = await supabase.functions.invoke("complete-stage", {
-      body: { proyecto_id: proyectoId, usuario_id: usuarioId },
-    });
+    const resultado = await llamarCompletarEtapa(supabase, proyectoId, usuarioId);
 
     setEnviando(false);
 
-    if (error || !data?.ok) {
-      setError(data?.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
+    if (!resultado.ok) {
+      setError(resultado.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
       return;
     }
 
