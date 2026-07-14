@@ -12,6 +12,7 @@ export interface Usuario {
   nombre: string;
   rol_id: string;
   activo: boolean;
+  especialidad: string | null;
 }
 
 export interface Fase {
@@ -20,12 +21,17 @@ export interface Fase {
   nombre: string;
 }
 
+export type TipoAccionEtapa = "checkbox" | "formulario" | "documentos_legales";
+
 export interface EtapaDefinicion {
   id: number;
   orden: number;
   nombre: string;
   fase_id: string;
   rol_id: string;
+  tipo_accion: TipoAccionEtapa;
+  mensaje_pendiente: string | null;
+  mensaje_notificacion: string | null;
 }
 
 export interface ChecklistItemDefinicion {
@@ -53,6 +59,19 @@ export interface Proyecto {
   fecha_objetivo: string | null;
   finalizado: boolean;
   creado_en: string;
+  datos_formulario: Record<string, string | number>;
+}
+
+export interface DocumentoLegalCatalogo {
+  id: number;
+  nombre: string;
+}
+
+export interface ProyectoDocumentoLegal {
+  id: string;
+  proyecto_id: string;
+  documento_id: number;
+  completado: boolean;
 }
 
 // Forma "enriquecida" que arma la UI, uniendo proyecto + etapa + cliente + responsable

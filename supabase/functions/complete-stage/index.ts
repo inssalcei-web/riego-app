@@ -1,6 +1,10 @@
 // ============================================================
 // Módulo 09 — Motor de Flujo
 // Edge Function de Supabase: complete-stage
+//
+// Valida la etapa según su tipo (checkbox, formulario, o
+// documentos legales), avanza el proyecto, y notifica al
+// siguiente responsable con el mensaje personalizado del Excel.
 // ============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -9,6 +13,26 @@ interface CompleteStageInput {
   proyecto_id: string;
   usuario_id: string;
 }
+
+const CAMPOS_OBLIGATORIOS_FORMULARIO = [
+  "codigo_proyecto",
+  "nombre_agricultor",
+  "rut_agricultor",
+  "tipo_proyecto",
+  "cantidad_hectareas",
+  "empresa_formuladora",
+  "empresa_constructora",
+  "fuente_financiamiento",
+  "monto_formulacion",
+  "monto_construccion",
+  "monto_aporte_propio",
+  "monto_total_proyecto",
+  "comuna",
+  "direccion",
+  "coordenadas_n",
+  "coordenadas_e",
+  "area_agencia",
+];
 
 Deno.serve(async (req: Request) => {
   const { proyecto_id, usuario_id }: CompleteStageInput = await req.json();
@@ -33,21 +57,46 @@ Deno.serve(async (req: Request) => {
     return jsonError("Solo el responsable de la etapa puede completarla", 403);
   }
 
-  const { data: pendientes } = await supabase
-    .from("checklist_instancia")
-    .select("id, checklist_items_definicion(obligatorio)")
-    .eq("proyecto_id", proyecto_id)
-    .eq("completado", false);
+  const etapaActual = proyecto.etapas_definicion;
 
-  const faltaObligatorio = (pendientes ?? []).some(
-    (item: any) => item.checklist_items_definicion.obligatorio
-  );
+  // Validación según el tipo de acción de la etapa actual
+  if (etapaActual.tipo_accion === "formulario") {
+    const datos = proyecto.datos_formulario ?? {};
+    const faltantes = CAMPOS_OBLIGATORIOS_FORMULARIO.filter(
+      (campo) => datos[campo] === undefined || datos[campo] === null || datos[campo] === ""
+    );
+    if (faltantes.length > 0) {
+      return jsonError(`Faltan campos del formulario: ${faltantes.join(", ")}`, 400);
+    }
+  } else if (etapaActual.tipo_accion === "documentos_legales") {
+    const { data: documentos } = await supabase
+      .from("proyecto_documentos_legales")
+      .select("id, completado")
+      .eq("proyecto_id", proyecto_id);
 
-  if (faltaObligatorio) {
-    return jsonError("Hay ítems obligatorios sin completar", 400);
+    if (!documentos || documentos.length === 0) {
+      return jsonError("Debes agregar al menos un documento legal", 400);
+    }
+    if (documentos.some((d: any) => !d.completado)) {
+      return jsonError("Hay documentos legales sin marcar como completados", 400);
+    }
+  } else {
+    // Tipo "checkbox": validación de checklist estándar
+    const { data: pendientes } = await supabase
+      .from("checklist_instancia")
+      .select("id, checklist_items_definicion(obligatorio)")
+      .eq("proyecto_id", proyecto_id)
+      .eq("completado", false);
+
+    const faltaObligatorio = (pendientes ?? []).some(
+      (item: any) => item.checklist_items_definicion.obligatorio
+    );
+
+    if (faltaObligatorio) {
+      return jsonError("Hay ítems obligatorios sin completar", 400);
+    }
   }
 
-  const etapaActual = proyecto.etapas_definicion;
   const { data: siguienteEtapa } = await supabase
     .from("etapas_definicion")
     .select("*")
@@ -65,6 +114,19 @@ Deno.serve(async (req: Request) => {
       .eq("etapa_id", siguienteEtapa.id)
       .single();
     siguienteResponsableId = asignacion?.usuario_id ?? null;
+
+    // Si no hay una asignación específica para esta etapa en este proyecto,
+    // se usa como respaldo cualquier usuario que tenga el rol requerido.
+    if (!siguienteResponsableId) {
+      const { data: usuarioPorRol } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("rol_id", siguienteEtapa.rol_id)
+        .eq("activo", true)
+        .limit(1)
+        .maybeSingle();
+      siguienteResponsableId = usuarioPorRol?.id ?? null;
+    }
   }
 
   await supabase
@@ -96,10 +158,16 @@ Deno.serve(async (req: Request) => {
   });
 
   if (siguienteResponsableId) {
+    // Usa el mensaje personalizado de la etapa (columna H del Excel)
+    // en vez de un texto genérico.
+    const mensaje =
+      siguienteEtapa.mensaje_notificacion ??
+      `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
+
     await supabase.from("notificaciones").insert({
       usuario_id: siguienteResponsableId,
       proyecto_id,
-      mensaje: `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`,
+      mensaje: `${mensaje} — Proyecto: ${proyecto.nombre}`,
     });
   }
 

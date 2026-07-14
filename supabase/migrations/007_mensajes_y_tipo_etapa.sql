@@ -1,0 +1,35 @@
+-- Agrega tipo de acción y mensajes personalizados por etapa, según el Excel real.
+alter table etapas_definicion add column if not exists tipo_accion text default 'checkbox';
+alter table etapas_definicion add column if not exists mensaje_pendiente text;
+alter table etapas_definicion add column if not exists mensaje_notificacion text;
+
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Aviso de proyecto realizado', mensaje_notificacion = 'Gestionar visita técnica' where orden = 1;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Visita técnica completada con ficha técnica', mensaje_notificacion = 'Ingresar nuevo ficha técnica de proyecto' where orden = 2;
+update etapas_definicion set tipo_accion = 'formulario', mensaje_pendiente = 'Llenar formulario de ingreso de proyectos', mensaje_notificacion = 'Revisar bases de nuevo proyecto' where orden = 3;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Bases de proyecto totalmente revisadas', mensaje_notificacion = 'Solicitar documentos legales de nuevo proyecto' where orden = 4;
+update etapas_definicion set tipo_accion = 'documentos_legales', mensaje_pendiente = 'Comprobar documentos legales solicitados', mensaje_notificacion = 'Gestionar levantamiento topográfico' where orden = 5;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Levantamiento topográfico realizado', mensaje_notificacion = 'Realizar análisis de suelo' where orden = 6;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Análisis de suelo realizado', mensaje_notificacion = 'Gestionar prueba de bombeo' where orden = 7;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Prueba de bombeo realizado', mensaje_notificacion = 'Realizar balance tierra - agua - cultivo' where orden = 8;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Balance tierra - agua - cultivo realizado', mensaje_notificacion = 'Generar planos de proyecto' where orden = 9;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Generación de planos realizado', mensaje_notificacion = 'Adjuntar anexos técnicos' where orden = 10;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Anexos técnicos 9.1, 9.2, 9.3 etc realizado', mensaje_notificacion = 'Realizar diseño fotovoltaico (si aplica)' where orden = 11;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Diseño fotovoltaico realizado', mensaje_notificacion = 'Adjuntar anexos legales a carpeta' where orden = 12;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Anexos legales realizado', mensaje_notificacion = 'Generar diseño civil' where orden = 13;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Diseño civil realizado', mensaje_notificacion = 'Generar diseño hidráulico' where orden = 14;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Diseño hidráulico realizado', mensaje_notificacion = 'Generar presupuesto' where orden = 15;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Presupuesto realizado', mensaje_notificacion = 'Aprobar o rechazar presupuesto' where orden = 16;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Visto bueno presupuesto realizado', mensaje_notificacion = 'Enviar postulación' where orden = 17;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Postulación realizado', mensaje_notificacion = 'Responder observaciones técnicas' where orden = 18;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Observaciones técnicas realizado', mensaje_notificacion = 'Responder observaciones legales' where orden = 19;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Observaciones legales realizado', mensaje_notificacion = 'Revisar resultados de postulación' where orden = 20;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Revisión de resultados realizado', mensaje_notificacion = 'Enviar carpetas finales a terreno' where orden = 21;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Envío de carpetas finales a terreno realizado', mensaje_notificacion = 'Gestionar financiamiento' where orden = 22;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Gestión de financiamiento realizado', mensaje_notificacion = 'Gestionar contrato de obra' where orden = 23;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Contrato de obras realizado', mensaje_notificacion = 'Gestionar compra de materiales' where orden = 24;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Compra materiales realizado', mensaje_notificacion = 'Gestionar contratación de subcontratos' where orden = 25;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Contratación de subcontratos realizado', mensaje_notificacion = 'Gestionar contacto con inspectores Indap/CNR' where orden = 26;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Contacto con inspectores Indap y CNR realizado', mensaje_notificacion = 'Gestionar facturación y documentos administrativos' where orden = 27;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Facturación y documentos administrativos realizado', mensaje_notificacion = 'Confirmar recepción de dinero' where orden = 28;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Recepción de dinero realizado', mensaje_notificacion = 'Confirmar cierre de proyecto' where orden = 29;
+update etapas_definicion set tipo_accion = 'checkbox', mensaje_pendiente = 'Cierre proyecto realizado', mensaje_notificacion = null where orden = 30;

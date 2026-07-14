@@ -2,8 +2,12 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerUsuarioActual } from "@/lib/data/proyectos";
 import { ChecklistPanel } from "@/components/ChecklistPanel";
+import { FormularioIngresoPanel } from "@/components/FormularioIngresoPanel";
+import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
 import { NavBar } from "@/components/NavBar";
 import { ChecklistItemConEstado } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 export default async function DetalleProyectoPage({
   params,
@@ -34,27 +38,6 @@ export default async function DetalleProyectoPage({
     supabase.from("etapas_definicion").select("*").eq("id", proyecto.etapa_actual_id).single(),
   ]);
 
-  // Trae el checklist de la etapa actual, uniendo definición + instancia del proyecto
-  const { data: itemsDefinicion } = await supabase
-    .from("checklist_items_definicion")
-    .select("*")
-    .eq("etapa_id", etapa!.id)
-    .order("orden");
-
-  const { data: instancias } = await supabase
-    .from("checklist_instancia")
-    .select("*")
-    .eq("proyecto_id", id);
-
-  const items: ChecklistItemConEstado[] = (itemsDefinicion ?? []).map((def) => {
-    const instancia = instancias?.find((i) => i.item_definicion_id === def.id);
-    return {
-      ...def,
-      instancia_id: instancia?.id ?? "",
-      completado: instancia?.completado ?? false,
-    };
-  });
-
   return (
     <div className="min-h-screen">
       <NavBar />
@@ -65,9 +48,98 @@ export default async function DetalleProyectoPage({
             {cliente?.nombre} · Etapa {etapa?.orden} de 30 · {etapa?.nombre}
           </p>
 
-          <ChecklistPanel proyectoId={id} itemsIniciales={items} usuarioId={usuario.id} />
+          {etapa?.mensaje_pendiente && (
+            <p
+              className="text-xs mb-4 px-3 py-2 rounded-lg"
+              style={{ background: "var(--surface-page)", color: "var(--text-secondary)" }}
+            >
+              {etapa.mensaje_pendiente}
+            </p>
+          )}
+
+          {etapa?.tipo_accion === "formulario" && (
+            <FormularioIngresoPanel
+              proyectoId={id}
+              usuarioId={usuario.id}
+              datosIniciales={proyecto.datos_formulario ?? {}}
+            />
+          )}
+
+          {etapa?.tipo_accion === "documentos_legales" && (
+            <DocumentosLegalesPanelServerWrapper proyectoId={id} usuarioId={usuario.id} />
+          )}
+
+          {(!etapa || etapa.tipo_accion === "checkbox") && (
+            <ChecklistPanelServerWrapper proyectoId={id} etapaId={proyecto.etapa_actual_id} usuarioId={usuario.id} />
+          )}
         </div>
       </main>
     </div>
+  );
+}
+
+// Envuelve la carga de datos del checklist para mantener el componente
+// principal más simple de leer.
+async function ChecklistPanelServerWrapper({
+  proyectoId,
+  etapaId,
+  usuarioId,
+}: {
+  proyectoId: string;
+  etapaId: number;
+  usuarioId: string;
+}) {
+  const supabase = await createClient();
+
+  const { data: itemsDefinicion } = await supabase
+    .from("checklist_items_definicion")
+    .select("*")
+    .eq("etapa_id", etapaId)
+    .order("orden");
+
+  const { data: instancias } = await supabase
+    .from("checklist_instancia")
+    .select("*")
+    .eq("proyecto_id", proyectoId);
+
+  const items: ChecklistItemConEstado[] = (itemsDefinicion ?? []).map((def) => {
+    const instancia = instancias?.find((i) => i.item_definicion_id === def.id);
+    return {
+      ...def,
+      instancia_id: instancia?.id ?? "",
+      completado: instancia?.completado ?? false,
+    };
+  });
+
+  return <ChecklistPanel proyectoId={proyectoId} itemsIniciales={items} usuarioId={usuarioId} />;
+}
+
+async function DocumentosLegalesPanelServerWrapper({
+  proyectoId,
+  usuarioId,
+}: {
+  proyectoId: string;
+  usuarioId: string;
+}) {
+  const supabase = await createClient();
+
+  const [{ data: catalogo }, { data: seleccionados }] = await Promise.all([
+    supabase.from("documentos_legales_catalogo").select("*").order("nombre"),
+    supabase.from("proyecto_documentos_legales").select("*").eq("proyecto_id", proyectoId),
+  ]);
+
+  const catalogoPorId = new Map((catalogo ?? []).map((c) => [c.id, c]));
+  const seleccionadosConNombre = (seleccionados ?? []).map((s) => ({
+    ...s,
+    nombre: catalogoPorId.get(s.documento_id)?.nombre ?? "Documento",
+  }));
+
+  return (
+    <DocumentosLegalesPanel
+      proyectoId={proyectoId}
+      usuarioId={usuarioId}
+      catalogo={catalogo ?? []}
+      seleccionadosIniciales={seleccionadosConNombre}
+    />
   );
 }

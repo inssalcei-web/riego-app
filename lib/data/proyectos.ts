@@ -75,4 +75,45 @@ export async function obtenerUsuarioActual(supabase: SupabaseClient) {
   return data;
 }
 
+export async function obtenerProyectosTerminados(
+  supabase: SupabaseClient
+): Promise<ProyectoConDetalle[]> {
+  const { data: proyectos, error } = await supabase
+    .from("proyectos")
+    .select("*")
+    .eq("finalizado", true)
+    .order("creado_en", { ascending: false });
+
+  if (error) throw error;
+  if (!proyectos || proyectos.length === 0) return [];
+
+  const [{ data: clientes }, { data: etapas }, { data: usuarios }] = await Promise.all([
+    supabase.from("clientes").select("*"),
+    supabase.from("etapas_definicion").select("*"),
+    supabase.from("usuarios").select("*"),
+  ]);
+
+  const clientesPorId = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const etapasPorId = new Map((etapas ?? []).map((e) => [e.id, e]));
+  const usuariosPorId = new Map((usuarios ?? []).map((u) => [u.id, u]));
+
+  return proyectos.map((p: any) => {
+    const etapa = etapasPorId.get(p.etapa_actual_id);
+    const cliente = clientesPorId.get(p.cliente_id);
+    const responsable = usuariosPorId.get(p.responsable_actual_id);
+
+    return {
+      ...p,
+      cliente_nombre: cliente?.nombre ?? "—",
+      etapa_nombre: etapa?.nombre ?? "—",
+      etapa_orden: etapa?.orden ?? 0,
+      fase_id: "terminados",
+      fase_nombre: "Proyectos terminados",
+      responsable_nombre: responsable?.nombre ?? "—",
+      porcentaje_avance: 100,
+      estado_cumplimiento: "en_plazo" as const,
+    };
+  });
+}
+
 export const FASES_ORDENADAS = flujoConfig.fases;

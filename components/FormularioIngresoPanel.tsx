@@ -1,0 +1,141 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { CAMPOS_FORMULARIO_INGRESO } from "@/lib/formulario-ingreso-config";
+
+export function FormularioIngresoPanel({
+  proyectoId,
+  usuarioId,
+  datosIniciales,
+}: {
+  proyectoId: string;
+  usuarioId: string;
+  datosIniciales: Record<string, string | number>;
+}) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [datos, setDatos] = useState<Record<string, string>>(
+    Object.fromEntries(
+      CAMPOS_FORMULARIO_INGRESO.map((c) => [c.key, String(datosIniciales?.[c.key] ?? "")])
+    )
+  );
+  const [guardando, setGuardando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const faltanCampos = CAMPOS_FORMULARIO_INGRESO.filter(
+    (c) => c.obligatorio && !datos[c.key]?.trim()
+  );
+
+  function actualizarCampo(key: string, value: string) {
+    setDatos((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function guardarBorrador() {
+    setGuardando(true);
+    await supabase.from("proyectos").update({ datos_formulario: datos }).eq("id", proyectoId);
+    setGuardando(false);
+  }
+
+  async function completarEtapa() {
+    setEnviando(true);
+    setError(null);
+
+    // Guarda los datos actuales antes de intentar cerrar la etapa
+    await supabase.from("proyectos").update({ datos_formulario: datos }).eq("id", proyectoId);
+
+    const { data, error } = await supabase.functions.invoke("complete-stage", {
+      body: { proyecto_id: proyectoId, usuario_id: usuarioId },
+    });
+
+    setEnviando(false);
+
+    if (error || !data?.ok) {
+      setError(data?.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
+      return;
+    }
+
+    router.push("/mis-tareas");
+    router.refresh();
+  }
+
+  return (
+    <div>
+      <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+        Formulario de ingreso de proyecto
+      </p>
+
+      <div className="flex flex-col gap-3 mb-4">
+        {CAMPOS_FORMULARIO_INGRESO.map((campo) => (
+          <div key={campo.key}>
+            <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+              {campo.label}
+              {campo.obligatorio && <span style={{ color: "var(--status-overdue-text)" }}> *</span>}
+            </label>
+
+            {campo.tipo === "select" ? (
+              <select
+                value={datos[campo.key]}
+                onChange={(e) => actualizarCampo(campo.key, e.target.value)}
+                className="w-full h-9 px-2 rounded-md border text-sm"
+                style={{ borderColor: "var(--border-default)" }}
+              >
+                <option value="">Seleccionar...</option>
+                {campo.opciones.map((op) => (
+                  <option key={op} value={op}>
+                    {op}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={campo.tipo === "numero" ? "number" : "text"}
+                value={datos[campo.key]}
+                onChange={(e) => actualizarCampo(campo.key, e.target.value)}
+                className="w-full h-9 px-2 rounded-md border text-sm"
+                style={{ borderColor: "var(--border-default)" }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <p className="text-xs mb-2" style={{ color: "var(--status-overdue-text)" }}>
+          {error}
+        </p>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          onClick={guardarBorrador}
+          disabled={guardando}
+          className="flex-1 h-10 rounded-lg text-sm font-medium border"
+          style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
+        >
+          {guardando ? "Guardando..." : "Guardar borrador"}
+        </button>
+
+        <button
+          onClick={completarEtapa}
+          disabled={faltanCampos.length > 0 || enviando}
+          className="flex-1 h-10 rounded-lg text-sm font-medium"
+          style={{
+            background: faltanCampos.length > 0 ? "var(--surface-page)" : "#3B82F6",
+            color: faltanCampos.length > 0 ? "var(--text-secondary)" : "#fff",
+            border: faltanCampos.length > 0 ? "1px solid var(--border-default)" : "none",
+          }}
+        >
+          {enviando
+            ? "Procesando..."
+            : faltanCampos.length > 0
+            ? `Completar etapa · faltan ${faltanCampos.length} campos`
+            : "Completar etapa"}
+        </button>
+      </div>
+    </div>
+  );
+}
