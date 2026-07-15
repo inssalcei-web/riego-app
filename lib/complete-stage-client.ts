@@ -1,10 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// Llama a la función complete-stage directamente por fetch, en vez
-// de supabase.functions.invoke(), porque ese método no siempre deja
-// ver el mensaje de error real cuando la función responde con un
-// código de error (400, 403, etc.) — solo mostraba un mensaje
-// genérico. Con fetch directo, siempre se lee el motivo exacto.
 export async function completarEtapa(
   supabase: SupabaseClient,
   proyectoId: string,
