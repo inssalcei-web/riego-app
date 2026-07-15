@@ -27,6 +27,7 @@ export function ChecklistPanel({
   async function toggleItem(item: ChecklistItemConEstado) {
     const nuevoValor = !item.completado;
 
+    // Actualización optimista: se ve el cambio al instante, sin esperar la red
     setItems((prev) =>
       prev.map((i) => (i.instancia_id === item.instancia_id ? { ...i, completado: nuevoValor } : i))
     );
@@ -41,6 +42,7 @@ export function ChecklistPanel({
       .eq("id", item.instancia_id);
 
     if (error) {
+      // Revertir si falló
       setItems((prev) =>
         prev.map((i) => (i.instancia_id === item.instancia_id ? { ...i, completado: !nuevoValor } : i))
       );

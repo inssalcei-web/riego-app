@@ -60,7 +60,7 @@ export default async function MisTareasPage() {
 
         {proyectos.length === 0 && (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            No tenés proyectos asignados en este momento.
+            No tienes proyectos asignados en este momento.
           </p>
         )}
 
