@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, obtenerProyectosTerminados, FASES_ORDENADAS } from "@/lib/data/proyectos";
+import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, FASES_ORDENADAS } from "@/lib/data/proyectos";
 import { ProjectCard } from "@/components/ProjectCard";
 import { NavBar } from "@/components/NavBar";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export default async function ProyectosPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const usuario = await obtenerUsuarioActual(supabase);
+
   const [proyectosActivos, proyectosTerminados] = await Promise.all([
     obtenerProyectosActivos(supabase),
     obtenerProyectosTerminados(supabase),
@@ -23,6 +26,18 @@ export default async function ProyectosPage() {
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5">
+        {usuario?.rol_id === "gerente_general" && (
+          <div className="flex justify-end mb-4">
+            <Link
+              href="/proyectos/nuevo"
+              className="text-sm px-4 py-2 rounded-lg text-white font-medium"
+              style={{ background: "#3B82F6" }}
+            >
+              + Crear nuevo proyecto
+            </Link>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {FASES_ORDENADAS.map((fase) => {
             const proyectosDeLaFase = proyectosActivos.filter((p) => p.fase_id === fase.id);
