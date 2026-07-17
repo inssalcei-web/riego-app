@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -7,17 +8,31 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const TABS = [
   { href: "/proyectos", label: "Proyectos activos" },
   { href: "/mis-tareas", label: "Mis tareas" },
-  { href: "/kpis", label: "KPIs e informes" },
+  { href: "/kpis", label: "KPIs e informes", soloRoles: ["gerente_general", "administrador"] },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
   const supabase = createClient();
+  const [rol, setRol] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("usuarios").select("rol_id").eq("auth_user_id", user.id).single();
+      setRol(data?.rol_id ?? null);
+    })();
+  }, []);
 
   async function cerrarSesion() {
     await supabase.auth.signOut();
     window.location.href = "/login";
   }
+
+  const tabsVisibles = TABS.filter((tab) => !tab.soloRoles || (rol && tab.soloRoles.includes(rol)));
 
   return (
     <header
@@ -46,7 +61,7 @@ export function NavBar() {
         className="flex gap-1 px-3 sm:px-4 pb-2 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
       >
-        {TABS.map((tab) => {
+        {tabsVisibles.map((tab) => {
           const activo = pathname?.startsWith(tab.href);
           return (
             <a

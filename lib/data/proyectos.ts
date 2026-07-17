@@ -24,10 +24,10 @@ async function enriquecerProyectos(
     const responsable = usuariosPorId.get(p.responsable_actual_id);
 
     // Para etapas de Administrador (responsabilidad compartida), se
-    // muestra el nombre del rol en vez de una persona específica,
-    // porque cualquiera de los dos administradores puede completarla.
+    // muestra solo el nombre del rol, sin mencionar a una persona
+    // específica — cualquiera de los administradores puede actuar.
     const responsableNombre =
-      etapa?.rol_id === "administrador" ? "Administrador (Patricio o Angelo)" : responsable?.nombre ?? "—";
+      etapa?.rol_id === "administrador" ? "Administrador" : responsable?.nombre ?? "—";
 
     return {
       ...p,

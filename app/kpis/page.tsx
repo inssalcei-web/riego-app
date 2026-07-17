@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, FASES_ORDENADAS } from "@/lib/data/proyectos";
+import { obtenerProyectosActivos, obtenerUsuarioActual, FASES_ORDENADAS } from "@/lib/data/proyectos";
 import { NavBar } from "@/components/NavBar";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,11 @@ export default async function KpisPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const usuario = await obtenerUsuarioActual(supabase);
+  if (!usuario || !["gerente_general", "administrador"].includes(usuario.rol_id)) {
+    redirect("/proyectos");
+  }
 
   const [
     proyectosActivos,
@@ -128,29 +133,19 @@ export default async function KpisPage() {
     .slice(0, 10);
 
   const total = proyectosActivos.length;
-  const enPlazo = proyectosActivos.filter((p) => p.estado_cumplimiento === "en_plazo").length;
-  const porVencer = proyectosActivos.filter((p) => p.estado_cumplimiento === "por_vencer").length;
-  const atrasados = proyectosActivos.filter((p) => p.estado_cumplimiento === "atrasado").length;
   const maxPorFase = Math.max(1, ...FASES_ORDENADAS.map((f) => proyectosActivos.filter((p) => p.fase_id === f.id).length));
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-3xl mx-auto space-y-8">
-        {/* Resumen general (ya existía) */}
+        {/* Resumen general */}
         <section>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
-            {[
-              { label: "Proyectos activos", valor: total, color: "var(--text-primary)" },
-              { label: "En plazo", valor: enPlazo, color: "var(--status-on-track-text)" },
-              { label: "Por vencer", valor: porVencer, color: "var(--status-due-soon-text)" },
-              { label: "Atrasados", valor: atrasados, color: "var(--status-overdue-text)" },
-            ].map((m) => (
-              <div key={m.label} className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-                <p className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>{m.label}</p>
-                <p className="text-xl font-medium" style={{ color: m.color }}>{m.valor}</p>
-              </div>
-            ))}
+          <div className="mb-4">
+            <div className="rounded-lg p-3 inline-block" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+              <p className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>Proyectos activos</p>
+              <p className="text-xl font-medium">{total}</p>
+            </div>
           </div>
 
           <p className="text-xs font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>6 · Proyectos por fase</p>
