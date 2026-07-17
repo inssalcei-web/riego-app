@@ -15,6 +15,7 @@ export function NavBar() {
   const pathname = usePathname();
   const supabase = createClient();
   const [rol, setRol] = useState<string | null>(null);
+  const [nombreUsuario, setNombreUsuario] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -22,8 +23,9 @@ export function NavBar() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from("usuarios").select("rol_id").eq("auth_user_id", user.id).single();
+      const { data } = await supabase.from("usuarios").select("rol_id, nombre").eq("auth_user_id", user.id).single();
       setRol(data?.rol_id ?? null);
+      setNombreUsuario(data?.nombre ?? null);
     })();
   }, []);
 
@@ -43,6 +45,14 @@ export function NavBar() {
         <img src="/logo.png" alt="INSSAL" className="h-7 sm:h-8 shrink-0" />
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {nombreUsuario && (
+            <span
+              className="text-xs whitespace-nowrap hidden sm:inline"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
+            </span>
+          )}
           <ThemeToggle />
           <button
             onClick={cerrarSesion}
@@ -53,6 +63,15 @@ export function NavBar() {
           </button>
         </div>
       </div>
+
+      {nombreUsuario && (
+        <p
+          className="text-[11px] px-4 -mt-1 mb-1 sm:hidden"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
+        </p>
+      )}
 
       {/* Las pestañas van en su propia fila, con scroll horizontal si
           no entran en pantallas angostas (celular) — así nunca se
