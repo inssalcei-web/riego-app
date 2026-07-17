@@ -25,14 +25,11 @@ export function ProjectCard({ proyecto }: { proyecto: ProyectoConDetalle }) {
   return (
     <Link
       href={`/mis-tareas/${proyecto.id}`}
-      className="block rounded-xl border p-3 mb-2.5 transition-all duration-150 hover:-translate-y-0.5"
+      className="project-card block rounded-xl border p-3 mb-2.5 transition-all duration-150 hover:-translate-y-0.5"
       style={{
         borderColor: "var(--border-default)",
         background: "var(--surface-card)",
-        boxShadow: "var(--shadow-card)",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-card-hover)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-card)")}
     >
       <span
         className="inline-block text-[10px] px-2 py-0.5 rounded-full mb-2"
