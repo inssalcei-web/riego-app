@@ -9,3 +9,11 @@ body {
   color: var(--text-primary);
   font-family: "Inter", sans-serif;
 }
+
+.project-card {
+  box-shadow: var(--shadow-card);
+}
+
+.project-card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
