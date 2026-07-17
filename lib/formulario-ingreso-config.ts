@@ -9,8 +9,6 @@ export type CampoFormulario =
   | { key: string; label: string; tipo: "select"; opciones: string[]; obligatorio: boolean };
 
 export const CAMPOS_FORMULARIO_INGRESO: CampoFormulario[] = [
-  { key: "codigo_proyecto", label: "Código proyecto", tipo: "texto", obligatorio: true },
-  { key: "nombre_agricultor", label: "Nombre agricultor", tipo: "texto", obligatorio: true },
   { key: "rut_agricultor", label: "RUT agricultor", tipo: "texto", obligatorio: true },
   {
     key: "tipo_proyecto",

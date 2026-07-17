@@ -9,10 +9,14 @@ import { CAMPOS_FORMULARIO_INGRESO } from "@/lib/formulario-ingreso-config";
 export function FormularioIngresoPanel({
   proyectoId,
   usuarioId,
+  codigoProyecto,
+  nombreAgricultor,
   datosIniciales,
 }: {
   proyectoId: string;
   usuarioId: string;
+  codigoProyecto: string;
+  nombreAgricultor: string;
   datosIniciales: Record<string, string | number>;
 }) {
   const router = useRouter();
@@ -66,6 +70,31 @@ export function FormularioIngresoPanel({
       <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
         Formulario de ingreso de proyecto
       </p>
+
+      <div className="flex flex-col gap-3 mb-3">
+        <div>
+          <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+            Código proyecto
+          </label>
+          <input
+            value={codigoProyecto}
+            disabled
+            className="w-full h-9 px-2 rounded-md border text-sm"
+            style={{ borderColor: "var(--border-default)", background: "var(--surface-page)", color: "var(--text-secondary)" }}
+          />
+        </div>
+        <div>
+          <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+            Nombre agricultor
+          </label>
+          <input
+            value={nombreAgricultor}
+            disabled
+            className="w-full h-9 px-2 rounded-md border text-sm"
+            style={{ borderColor: "var(--border-default)", background: "var(--surface-page)", color: "var(--text-secondary)" }}
+          />
+        </div>
+      </div>
 
       <div className="flex flex-col gap-3 mb-4">
         {CAMPOS_FORMULARIO_INGRESO.map((campo) => (

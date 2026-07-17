@@ -32,6 +32,7 @@ export interface EtapaDefinicion {
   tipo_accion: TipoAccionEtapa;
   mensaje_pendiente: string | null;
   mensaje_notificacion: string | null;
+  usuario_asignado_id: string | null;
 }
 
 export interface ChecklistItemDefinicion {
@@ -51,16 +52,26 @@ export type EstadoCumplimiento = "en_plazo" | "por_vencer" | "atrasado";
 
 export interface Proyecto {
   id: string;
-  nombre: string;
-  cliente_id: string;
+  nombre: string | null;
+  codigo_proyecto: string;
+  nombre_agricultor: string;
+  cliente_id: string | null;
   etapa_actual_id: number;
   responsable_actual_id: string;
   fecha_inicio: string;
   fecha_objetivo: string | null;
   finalizado: boolean;
+  motivo_cierre: string | null;
   creado_en: string;
   datos_formulario: Record<string, string | number>;
 }
+
+export const MOTIVOS_CIERRE: Record<string, string> = {
+  rechazo_presupuesto: "Rechazo de presupuesto",
+  falta_documentos_legales: "Falta de documentos legales",
+  falta_presupuesto: "Falta de presupuesto",
+  cliente_desiste: "Cliente desiste",
+};
 
 export interface DocumentoLegalCatalogo {
   id: number;
@@ -82,6 +93,7 @@ export interface ProyectoConDetalle extends Proyecto {
   fase_id: string;
   fase_nombre: string;
   responsable_nombre: string;
+  fuente_financiamiento: string | null;
   porcentaje_avance: number;
   estado_cumplimiento: EstadoCumplimiento;
 }

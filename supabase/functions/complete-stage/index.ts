@@ -1,10 +1,6 @@
 // ============================================================
 // Módulo 09 — Motor de Flujo
 // Edge Function de Supabase: complete-stage
-//
-// Valida la etapa según su tipo (checkbox, formulario, o
-// documentos legales), avanza el proyecto, y notifica al
-// siguiente responsable con el mensaje personalizado del Excel.
 // ============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -41,9 +37,6 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req: Request) => {
-  // El navegador manda esta solicitud "de prueba" antes de la real,
-  // sin datos adentro. Si no se responde acá, la solicitud real
-  // nunca llega a ejecutarse.
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -56,21 +49,46 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Consultas separadas (sin unión automática) para evitar el error
+  // de "relación ambigua" que da Supabase cuando hay más de un
+  // camino posible entre dos tablas.
   const { data: proyecto, error: errProyecto } = await supabase
     .from("proyectos")
-    .select("*, etapas_definicion(*)")
+    .select("*")
     .eq("id", proyecto_id)
     .single();
 
   if (errProyecto || !proyecto) {
-    return jsonError("Proyecto no encontrado", 404);
+    return jsonError(
+      `Proyecto no encontrado — detalle: ${errProyecto?.message ?? "sin datos"} (id buscado: ${proyecto_id})`,
+      404
+    );
   }
 
-  if (proyecto.responsable_actual_id !== usuario_id) {
-    return jsonError("Solo el responsable de la etapa puede completarla", 403);
+  const { data: etapaActual, error: errEtapa } = await supabase
+    .from("etapas_definicion")
+    .select("*")
+    .eq("id", proyecto.etapa_actual_id)
+    .single();
+
+  if (errEtapa || !etapaActual) {
+    return jsonError(`Etapa actual no encontrada — detalle: ${errEtapa?.message ?? "sin datos"}`, 404);
   }
 
-  const etapaActual = proyecto.etapas_definicion;
+  const { data: usuarioActuante } = await supabase
+    .from("usuarios")
+    .select("rol_id")
+    .eq("id", usuario_id)
+    .single();
+
+  const autorizado =
+    etapaActual.rol_id === "administrador"
+      ? usuarioActuante?.rol_id === "administrador"
+      : proyecto.responsable_actual_id === usuario_id;
+
+  if (!autorizado) {
+    return jsonError("No tienes permiso para completar esta etapa", 403);
+  }
 
   // Validación según el tipo de acción de la etapa actual
   if (etapaActual.tipo_accion === "formulario") {
@@ -94,16 +112,30 @@ Deno.serve(async (req: Request) => {
       return jsonError("Hay documentos legales sin marcar como completados", 400);
     }
   } else {
-    // Tipo "checkbox": validación de checklist estándar
-    const { data: pendientes } = await supabase
-      .from("checklist_instancia")
-      .select("id, checklist_items_definicion(obligatorio)")
-      .eq("proyecto_id", proyecto_id)
-      .eq("completado", false);
+    // Solo se revisan los ítems de checklist que pertenecen a la
+    // ETAPA ACTUAL — antes se revisaban los de las 30 etapas juntas,
+    // lo cual bloqueaba el avance aunque la etapa actual sí estuviera
+    // completa.
+    const { data: itemsDeEstaEtapa } = await supabase
+      .from("checklist_items_definicion")
+      .select("id, obligatorio")
+      .eq("etapa_id", etapaActual.id);
 
-    const faltaObligatorio = (pendientes ?? []).some(
-      (item: any) => item.checklist_items_definicion.obligatorio
-    );
+    const idsItems = (itemsDeEstaEtapa ?? []).map((i: any) => i.id);
+
+    const { data: instanciasDeEstaEtapa } = await supabase
+      .from("checklist_instancia")
+      .select("item_definicion_id, completado")
+      .eq("proyecto_id", proyecto_id)
+      .in("item_definicion_id", idsItems.length > 0 ? idsItems : [-1]);
+
+    const faltaObligatorio = (itemsDeEstaEtapa ?? []).some((item: any) => {
+      if (!item.obligatorio) return false;
+      const instancia = (instanciasDeEstaEtapa ?? []).find(
+        (i: any) => i.item_definicion_id === item.id
+      );
+      return !instancia || !instancia.completado;
+    });
 
     if (faltaObligatorio) {
       return jsonError("Hay ítems obligatorios sin completar", 400);
@@ -119,18 +151,25 @@ Deno.serve(async (req: Request) => {
   const esUltimaEtapa = !siguienteEtapa;
 
   let siguienteResponsableId: string | null = null;
-  if (!esUltimaEtapa) {
-    const { data: asignacion } = await supabase
-      .from("proyecto_responsables")
-      .select("usuario_id")
-      .eq("proyecto_id", proyecto_id)
-      .eq("etapa_id", siguienteEtapa.id)
-      .single();
-    siguienteResponsableId = asignacion?.usuario_id ?? null;
+  let administradoresParaNotificar: string[] = [];
 
-    // Si no hay una asignación específica para esta etapa en este proyecto,
-    // se usa como respaldo cualquier usuario que tenga el rol requerido.
-    if (!siguienteResponsableId) {
+  if (!esUltimaEtapa) {
+    if (siguienteEtapa.usuario_asignado_id) {
+      // Asignación fija por etapa (Ingenieros de proyecto)
+      siguienteResponsableId = siguienteEtapa.usuario_asignado_id;
+    } else if (siguienteEtapa.rol_id === "administrador") {
+      // Responsabilidad compartida: cualquiera de los administradores
+      // puede completarla. Se guarda uno como referencia visual, pero
+      // se notifica a todos los que tengan ese rol.
+      const { data: administradores } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("rol_id", "administrador")
+        .eq("activo", true);
+      administradoresParaNotificar = (administradores ?? []).map((a: any) => a.id);
+      siguienteResponsableId = administradoresParaNotificar[0] ?? null;
+    } else {
+      // Un único usuario tiene ese rol (Gerente general, Encargado legal)
       const { data: usuarioPorRol } = await supabase
         .from("usuarios")
         .select("id")
@@ -170,9 +209,26 @@ Deno.serve(async (req: Request) => {
     tiempo_ejecucion_ms: Date.now() - startedAt,
   });
 
-  if (siguienteResponsableId) {
-    // Usa el mensaje personalizado de la etapa (columna H del Excel)
-    // en vez de un texto genérico.
+  // Si la etapa recién completada era de Administrador, se borran las
+  // notificaciones pendientes de ESTE proyecto para el otro administrador
+  // (ya no aplica, porque alguien ya la completó).
+  if (etapaActual.rol_id === "administrador") {
+    await supabase.from("notificaciones").delete().eq("proyecto_id", proyecto_id).eq("leida", false);
+  }
+
+  if (administradoresParaNotificar.length > 0) {
+    const mensaje =
+      siguienteEtapa.mensaje_notificacion ??
+      `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
+
+    await supabase.from("notificaciones").insert(
+      administradoresParaNotificar.map((id) => ({
+        usuario_id: id,
+        proyecto_id,
+        mensaje: `${mensaje} — Proyecto: ${proyecto.nombre}`,
+      }))
+    );
+  } else if (siguienteResponsableId) {
     const mensaje =
       siguienteEtapa.mensaje_notificacion ??
       `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;

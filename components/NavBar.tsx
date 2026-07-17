@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const TABS = [
   { href: "/proyectos", label: "Proyectos activos" },
@@ -20,48 +21,49 @@ export function NavBar() {
 
   return (
     <header
-      className="flex items-center justify-between px-5 py-3 border-b"
-      style={{ borderColor: "var(--border-default)" }}
+      className="border-b"
+      style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}
     >
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "#3B82F6" }}>
-            <span className="text-white text-xs">💧</span>
-          </div>
-          <span className="font-medium text-sm">Riego App</span>
-        </div>
+      <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 gap-3">
+        <img src="/logo.png" alt="INSSAL" className="h-7 sm:h-8 shrink-0" />
 
-        <nav className="flex gap-1">
-          {TABS.map((tab) => {
-            const activo = pathname?.startsWith(tab.href);
-            return (
-              // Se usa <a> normal (no <Link>) a propósito: fuerza una
-              // recarga completa de la página en cada clic, evitando
-              // que el navegador reutilice una respuesta vieja guardada
-              // en caché de cuando todavía no había sesión iniciada.
-              <a
-                key={tab.href}
-                href={tab.href}
-                className="text-sm px-3 py-1.5 rounded-md"
-                style={{
-                  color: activo ? "#3B82F6" : "var(--text-secondary)",
-                  fontWeight: activo ? 500 : 400,
-                }}
-              >
-                {tab.label}
-              </a>
-            );
-          })}
-        </nav>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <ThemeToggle />
+          <button
+            onClick={cerrarSesion}
+            className="text-xs whitespace-nowrap"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
-      <button
-        onClick={cerrarSesion}
-        className="text-xs"
-        style={{ color: "var(--text-secondary)" }}
+      {/* Las pestañas van en su propia fila, con scroll horizontal si
+          no entran en pantallas angostas (celular) — así nunca se
+          cortan ni obligan a hacer zoom out. */}
+      <nav
+        className="flex gap-1 px-3 sm:px-4 pb-2 overflow-x-auto"
+        style={{ scrollbarWidth: "none" }}
       >
-        Cerrar sesión
-      </button>
+        {TABS.map((tab) => {
+          const activo = pathname?.startsWith(tab.href);
+          return (
+            <a
+              key={tab.href}
+              href={tab.href}
+              className="text-sm px-3 py-1.5 rounded-md whitespace-nowrap"
+              style={{
+                color: activo ? "#3B82F6" : "var(--text-secondary)",
+                background: activo ? "var(--surface-page)" : "transparent",
+                fontWeight: activo ? 500 : 400,
+              }}
+            >
+              {tab.label}
+            </a>
+          );
+        })}
+      </nav>
     </header>
   );
 }

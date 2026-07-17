@@ -4,8 +4,9 @@ import { obtenerUsuarioActual } from "@/lib/data/proyectos";
 import { ChecklistPanel } from "@/components/ChecklistPanel";
 import { FormularioIngresoPanel } from "@/components/FormularioIngresoPanel";
 import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
+import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { NavBar } from "@/components/NavBar";
-import { ChecklistItemConEstado } from "@/lib/types";
+import { ChecklistItemConEstado, MOTIVOS_CIERRE } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -33,22 +34,35 @@ export default async function DetalleProyectoPage({
 
   if (!proyecto) notFound();
 
-  const [{ data: cliente }, { data: etapa }] = await Promise.all([
-    supabase.from("clientes").select("*").eq("id", proyecto.cliente_id).single(),
-    supabase.from("etapas_definicion").select("*").eq("id", proyecto.etapa_actual_id).single(),
-  ]);
+  const { data: etapa } = await supabase
+    .from("etapas_definicion")
+    .select("*")
+    .eq("id", proyecto.etapa_actual_id)
+    .single();
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-md mx-auto">
         <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}>
-          <p className="font-medium text-base mb-0.5">{proyecto.nombre}</p>
-          <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
-            {cliente?.nombre} · Etapa {etapa?.orden} de 30 · {etapa?.nombre}
+          <p className="font-medium text-base mb-0.5">{proyecto.codigo_proyecto ?? "Sin código"}</p>
+          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+            {proyecto.nombre_agricultor ?? "Agricultor sin definir"}
           </p>
 
-          {etapa?.mensaje_pendiente && (
+          {proyecto.finalizado ? (
+            <p className="text-xs mb-4" style={{ color: "var(--status-overdue-text)" }}>
+              {proyecto.motivo_cierre
+                ? `Cerrado anticipadamente — ${MOTIVOS_CIERRE[proyecto.motivo_cierre] ?? proyecto.motivo_cierre}`
+                : "Proyecto completado"}
+            </p>
+          ) : (
+            <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
+              Etapa {etapa?.orden} de 30 · {etapa?.nombre}
+            </p>
+          )}
+
+          {!proyecto.finalizado && etapa?.mensaje_pendiente && (
             <p
               className="text-xs mb-4 px-3 py-2 rounded-lg"
               style={{ background: "var(--surface-page)", color: "var(--text-secondary)" }}
@@ -57,20 +71,26 @@ export default async function DetalleProyectoPage({
             </p>
           )}
 
-          {etapa?.tipo_accion === "formulario" && (
+          {!proyecto.finalizado && etapa?.tipo_accion === "formulario" && (
             <FormularioIngresoPanel
               proyectoId={id}
               usuarioId={usuario.id}
+              codigoProyecto={proyecto.codigo_proyecto ?? ""}
+              nombreAgricultor={proyecto.nombre_agricultor ?? ""}
               datosIniciales={proyecto.datos_formulario ?? {}}
             />
           )}
 
-          {etapa?.tipo_accion === "documentos_legales" && (
+          {!proyecto.finalizado && etapa?.tipo_accion === "documentos_legales" && (
             <DocumentosLegalesPanelServerWrapper proyectoId={id} usuarioId={usuario.id} />
           )}
 
-          {(!etapa || etapa.tipo_accion === "checkbox") && (
+          {!proyecto.finalizado && (!etapa || etapa.tipo_accion === "checkbox") && (
             <ChecklistPanelServerWrapper proyectoId={id} etapaId={proyecto.etapa_actual_id} usuarioId={usuario.id} />
+          )}
+
+          {!proyecto.finalizado && usuario.rol_id === "gerente_general" && (
+            <CerrarProyectoButton proyectoId={id} usuarioId={usuario.id} />
           )}
         </div>
       </main>
@@ -78,8 +98,6 @@ export default async function DetalleProyectoPage({
   );
 }
 
-// Envuelve la carga de datos del checklist para mantener el componente
-// principal más simple de leer.
 async function ChecklistPanelServerWrapper({
   proyectoId,
   etapaId,
