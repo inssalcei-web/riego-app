@@ -3,38 +3,39 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { cerrarProyectoAnticipado } from "@/lib/cerrar-proyecto-client";
-import { MOTIVOS_CIERRE } from "@/lib/types";
+import { eliminarProyecto } from "@/lib/eliminar-proyecto-client";
 
-export function CerrarProyectoButton({
+export function EliminarProyectoButton({
   proyectoId,
   usuarioId,
+  codigoProyecto,
 }: {
   proyectoId: string;
   usuarioId: string;
+  codigoProyecto: string;
 }) {
   const router = useRouter();
   const supabase = createClient();
 
   const [abierto, setAbierto] = useState(false);
-  const [motivo, setMotivo] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const textoEsperado = codigoProyecto || "ELIMINAR";
+  const puedeConfirmar = confirmacion.trim() === textoEsperado;
+
   async function confirmar() {
-    if (!motivo) {
-      setError("Selecciona un motivo");
-      return;
-    }
+    if (!puedeConfirmar) return;
     setEnviando(true);
     setError(null);
 
-    const resultado = await cerrarProyectoAnticipado(supabase, proyectoId, usuarioId, motivo);
+    const resultado = await eliminarProyecto(supabase, proyectoId, usuarioId);
 
     setEnviando(false);
 
     if (!resultado.ok) {
-      setError(resultado.error ?? "No se pudo cerrar el proyecto");
+      setError(resultado.error ?? "No se pudo eliminar el proyecto");
       return;
     }
 
@@ -49,7 +50,7 @@ export function CerrarProyectoButton({
         className="text-sm mt-3"
         style={{ color: "var(--status-overdue-text)" }}
       >
-        Cerrar proyecto anticipadamente
+        Eliminar proyecto por completo
       </button>
     );
   }
@@ -59,23 +60,20 @@ export function CerrarProyectoButton({
       className="mt-3 p-3 rounded-lg border"
       style={{ borderColor: "var(--status-overdue-fill)", background: "var(--status-overdue-bg)" }}
     >
-      <p className="text-sm font-medium mb-2" style={{ color: "var(--status-overdue-text)" }}>
-        Cerrar este proyecto anticipadamente
+      <p className="text-sm font-medium mb-1" style={{ color: "var(--status-overdue-text)" }}>
+        Esto va a borrar el proyecto por completo
+      </p>
+      <p className="text-base mb-2" style={{ color: "var(--status-overdue-text)" }}>
+        Se elimina todo su historial, checklist, documentos y datos de KPIs. No se puede deshacer.
+        Para confirmar, escribe <strong>{textoEsperado}</strong> abajo.
       </p>
 
-      <select
-        value={motivo}
-        onChange={(e) => setMotivo(e.target.value)}
+      <input
+        value={confirmacion}
+        onChange={(e) => setConfirmacion(e.target.value)}
         className="w-full h-9 px-2 mb-2 rounded-md border text-base"
         style={{ borderColor: "var(--border-default)" }}
-      >
-        <option value="">Selecciona un motivo...</option>
-        {Object.entries(MOTIVOS_CIERRE).map(([valor, etiqueta]) => (
-          <option key={valor} value={valor}>
-            {etiqueta}
-          </option>
-        ))}
-      </select>
+      />
 
       {error && (
         <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
@@ -85,7 +83,10 @@ export function CerrarProyectoButton({
 
       <div className="flex gap-2">
         <button
-          onClick={() => setAbierto(false)}
+          onClick={() => {
+            setAbierto(false);
+            setConfirmacion("");
+          }}
           className="flex-1 h-9 rounded-md text-sm font-medium border"
           style={{ borderColor: "var(--border-default)" }}
         >
@@ -93,11 +94,11 @@ export function CerrarProyectoButton({
         </button>
         <button
           onClick={confirmar}
-          disabled={enviando}
+          disabled={!puedeConfirmar || enviando}
           className="flex-1 h-9 rounded-md text-sm font-medium text-white"
-          style={{ background: "var(--status-overdue-fill)" }}
+          style={{ background: "var(--status-overdue-fill)", opacity: puedeConfirmar ? 1 : 0.5 }}
         >
-          {enviando ? "Cerrando..." : "Confirmar cierre"}
+          {enviando ? "Eliminando..." : "Eliminar definitivamente"}
         </button>
       </div>
     </div>

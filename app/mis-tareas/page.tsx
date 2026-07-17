@@ -33,14 +33,14 @@ export default async function MisTareasPage() {
       <div className="min-h-screen">
         <NavBar />
         <main className="p-5 max-w-md mx-auto">
-          <p className="font-medium text-sm mb-2">No se pudo cargar tu usuario</p>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+          <p className="font-medium text-base mb-2">No se pudo cargar tu usuario</p>
+          <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
             Sesión conectada como: {user.email}
           </p>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
             ID de sesión (auth_user_id): {user.id}
           </p>
-          <p className="text-xs" style={{ color: "var(--status-overdue-text)" }}>
+          <p className="text-sm" style={{ color: "var(--status-overdue-text)" }}>
             Error de base de datos: {errorUsuario?.message ?? "sin datos"}
           </p>
         </main>
@@ -54,12 +54,12 @@ export default async function MisTareasPage() {
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-md mx-auto">
-        <p className="font-medium text-sm mb-4">
+        <p className="font-medium text-base mb-4">
           Mis tareas <span style={{ color: "var(--text-secondary)" }}>({proyectos.length})</span>
         </p>
 
         {proyectos.length === 0 && (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-base" style={{ color: "var(--text-secondary)" }}>
             No tienes proyectos asignados en este momento.
           </p>
         )}

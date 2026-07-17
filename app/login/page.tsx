@@ -43,12 +43,12 @@ export default function LoginPage() {
       >
         <div className="flex flex-col items-center gap-1 mb-6">
           <img src="/logo.png" alt="INSSAL" className="h-14 mb-1" />
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             Seguimiento de proyectos de riego
           </p>
         </div>
 
-        <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+        <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
           Correo
         </label>
         <input
@@ -57,11 +57,11 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="nombre@empresa.cl"
-          className="w-full h-9 px-3 mb-3 rounded-md border text-sm"
+          className="w-full h-9 px-3 mb-3 rounded-md border text-base"
           style={{ borderColor: "var(--border-default)" }}
         />
 
-        <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+        <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
           Contraseña
         </label>
         <input
@@ -70,12 +70,12 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
-          className="w-full h-9 px-3 mb-4 rounded-md border text-sm"
+          className="w-full h-9 px-3 mb-4 rounded-md border text-base"
           style={{ borderColor: "var(--border-default)" }}
         />
 
         {error && (
-          <p className="text-xs mb-3" style={{ color: "var(--status-overdue-text)" }}>
+          <p className="text-sm mb-3" style={{ color: "var(--status-overdue-text)" }}>
             {error}
           </p>
         )}
@@ -83,7 +83,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={cargando}
-          className="w-full h-9 rounded-md text-sm font-medium text-white"
+          className="w-full h-9 rounded-md text-base font-medium text-white"
           style={{ background: "#3B82F6", opacity: cargando ? 0.6 : 1 }}
         >
           {cargando ? "Ingresando..." : "Ingresar"}

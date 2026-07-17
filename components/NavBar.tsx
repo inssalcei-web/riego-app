@@ -47,7 +47,7 @@ export function NavBar() {
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {nombreUsuario && (
             <span
-              className="text-xs whitespace-nowrap hidden sm:inline"
+              className="text-sm whitespace-nowrap hidden sm:inline"
               style={{ color: "var(--text-secondary)" }}
             >
               Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
@@ -56,7 +56,7 @@ export function NavBar() {
           <ThemeToggle />
           <button
             onClick={cerrarSesion}
-            className="text-xs whitespace-nowrap"
+            className="text-sm whitespace-nowrap"
             style={{ color: "var(--text-secondary)" }}
           >
             Cerrar sesión
@@ -66,7 +66,7 @@ export function NavBar() {
 
       {nombreUsuario && (
         <p
-          className="text-[11px] px-4 -mt-1 mb-1 sm:hidden"
+          className="text-base px-4 -mt-1 mb-1 sm:hidden"
           style={{ color: "var(--text-secondary)" }}
         >
           Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
@@ -86,7 +86,7 @@ export function NavBar() {
             <a
               key={tab.href}
               href={tab.href}
-              className="text-sm px-3 py-1.5 rounded-md whitespace-nowrap"
+              className="text-base px-3 py-1.5 rounded-md whitespace-nowrap"
               style={{
                 color: activo ? "#3B82F6" : "var(--text-secondary)",
                 background: activo ? "var(--surface-page)" : "transparent",

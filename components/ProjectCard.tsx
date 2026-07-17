@@ -32,7 +32,7 @@ export function ProjectCard({ proyecto }: { proyecto: ProyectoConDetalle }) {
       }}
     >
       <span
-        className="inline-block text-[10px] px-2 py-0.5 rounded-full mb-2"
+        className="inline-block text-sm px-2 py-0.5 rounded-full mb-2"
         style={{ background: estilo.bg, color: estilo.text }}
       >
         {estilo.label}
@@ -41,19 +41,19 @@ export function ProjectCard({ proyecto }: { proyecto: ProyectoConDetalle }) {
           : ""}
       </span>
 
-      <p className="font-medium text-[13px] leading-tight mb-0.5">
+      <p className="font-medium text-lg leading-tight mb-0.5">
         {proyecto.codigo_proyecto ?? "Sin código"}
       </p>
-      <p className="text-[11px] mb-0.5" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-base mb-0.5" style={{ color: "var(--text-secondary)" }}>
         {proyecto.nombre_agricultor ?? "Agricultor sin definir"}
       </p>
-      <p className="text-[11px] mb-2" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-base mb-2" style={{ color: "var(--text-secondary)" }}>
         {proyecto.fuente_financiamiento ?? "Financiamiento: pendiente"}
       </p>
 
       {!proyecto.finalizado && (
         <>
-          <p className="text-[11px] mb-2" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-base mb-2" style={{ color: "var(--text-secondary)" }}>
             {proyecto.etapa_nombre}
           </p>
           <div className="h-1.5 rounded-full mb-1.5 overflow-hidden" style={{ background: "var(--border-default)" }}>
@@ -65,7 +65,7 @@ export function ProjectCard({ proyecto }: { proyecto: ProyectoConDetalle }) {
         </>
       )}
 
-      <div className="flex justify-between text-[10px]" style={{ color: "var(--text-secondary)" }}>
+      <div className="flex justify-between text-sm" style={{ color: "var(--text-secondary)" }}>
         <span>{proyecto.responsable_nombre}</span>
       </div>
     </Link>

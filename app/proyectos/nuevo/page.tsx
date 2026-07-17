@@ -62,37 +62,37 @@ export default function NuevoProyectoPage() {
           className="rounded-xl border p-4"
           style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}
         >
-          <p className="font-medium text-base mb-1">Crear nuevo proyecto</p>
-          <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
+          <p className="font-medium text-lg mb-1">Crear nuevo proyecto</p>
+          <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
             Solo se piden estos 2 datos ahora. El resto se completa en la etapa 3, con el
             formulario de ingreso. El código y el nombre del agricultor no se podrán modificar
             después.
           </p>
 
-          <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+          <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
             Código proyecto
           </label>
           <input
             required
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
-            className="w-full h-9 px-2 mb-3 rounded-md border text-sm"
+            className="w-full h-9 px-2 mb-3 rounded-md border text-base"
             style={{ borderColor: "var(--border-default)" }}
           />
 
-          <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+          <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
             Nombre agricultor
           </label>
           <input
             required
             value={agricultor}
             onChange={(e) => setAgricultor(e.target.value)}
-            className="w-full h-9 px-2 mb-4 rounded-md border text-sm"
+            className="w-full h-9 px-2 mb-4 rounded-md border text-base"
             style={{ borderColor: "var(--border-default)" }}
           />
 
           {error && (
-            <p className="text-xs mb-3" style={{ color: "var(--status-overdue-text)" }}>
+            <p className="text-sm mb-3" style={{ color: "var(--status-overdue-text)" }}>
               {error}
             </p>
           )}
@@ -100,7 +100,7 @@ export default function NuevoProyectoPage() {
           <button
             type="submit"
             disabled={enviando}
-            className="w-full h-10 rounded-lg text-sm font-medium text-white"
+            className="w-full h-10 rounded-lg text-base font-medium text-white"
             style={{ background: "#3B82F6", opacity: enviando ? 0.6 : 1 }}
           >
             {enviando ? "Creando..." : "Crear proyecto"}

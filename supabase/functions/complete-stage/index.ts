@@ -11,8 +11,6 @@ interface CompleteStageInput {
 }
 
 const CAMPOS_OBLIGATORIOS_FORMULARIO = [
-  "codigo_proyecto",
-  "nombre_agricultor",
   "rut_agricultor",
   "tipo_proyecto",
   "cantidad_hectareas",
@@ -181,14 +179,28 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  await supabase
+  // Actualización con "seguro": solo avanza si la etapa actual del
+  // proyecto sigue siendo exactamente la que esperábamos. Si otra
+  // persona ya la completó una fracción de segundo antes, esta
+  // condición no encuentra ninguna fila para actualizar, y se corta
+  // acá — sin generar historial ni notificaciones duplicadas.
+  const { data: filasActualizadas } = await supabase
     .from("proyectos")
     .update({
       etapa_actual_id: esUltimaEtapa ? etapaActual.id : siguienteEtapa.id,
       responsable_actual_id: siguienteResponsableId ?? proyecto.responsable_actual_id,
       finalizado: esUltimaEtapa,
     })
-    .eq("id", proyecto_id);
+    .eq("id", proyecto_id)
+    .eq("etapa_actual_id", etapaActual.id)
+    .select();
+
+  if (!filasActualizadas || filasActualizadas.length === 0) {
+    return jsonError(
+      "Esta etapa ya fue completada por otra persona un instante antes. La pantalla se va a actualizar sola.",
+      409
+    );
+  }
 
   await supabase.from("timeline_eventos").insert({
     proyecto_id,

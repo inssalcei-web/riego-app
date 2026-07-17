@@ -58,6 +58,9 @@ export function FormularioIngresoPanel({
 
     if (!resultado.ok) {
       setError(resultado.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
+      if (resultado.error?.includes("completada por otra persona")) {
+        setTimeout(() => router.refresh(), 1800);
+      }
       return;
     }
 
@@ -67,30 +70,30 @@ export function FormularioIngresoPanel({
 
   return (
     <div>
-      <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
         Formulario de ingreso de proyecto
       </p>
 
       <div className="flex flex-col gap-3 mb-3">
         <div>
-          <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+          <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
             Código proyecto
           </label>
           <input
             value={codigoProyecto}
             disabled
-            className="w-full h-9 px-2 rounded-md border text-sm"
+            className="w-full h-9 px-2 rounded-md border text-base"
             style={{ borderColor: "var(--border-default)", background: "var(--surface-page)", color: "var(--text-secondary)" }}
           />
         </div>
         <div>
-          <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+          <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
             Nombre agricultor
           </label>
           <input
             value={nombreAgricultor}
             disabled
-            className="w-full h-9 px-2 rounded-md border text-sm"
+            className="w-full h-9 px-2 rounded-md border text-base"
             style={{ borderColor: "var(--border-default)", background: "var(--surface-page)", color: "var(--text-secondary)" }}
           />
         </div>
@@ -99,7 +102,7 @@ export function FormularioIngresoPanel({
       <div className="flex flex-col gap-3 mb-4">
         {CAMPOS_FORMULARIO_INGRESO.map((campo) => (
           <div key={campo.key}>
-            <label className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>
+            <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
               {campo.label}
               {campo.obligatorio && <span style={{ color: "var(--status-overdue-text)" }}> *</span>}
             </label>
@@ -108,7 +111,7 @@ export function FormularioIngresoPanel({
               <select
                 value={datos[campo.key]}
                 onChange={(e) => actualizarCampo(campo.key, e.target.value)}
-                className="w-full h-9 px-2 rounded-md border text-sm"
+                className="w-full h-9 px-2 rounded-md border text-base"
                 style={{ borderColor: "var(--border-default)" }}
               >
                 <option value="">Seleccionar...</option>
@@ -123,7 +126,7 @@ export function FormularioIngresoPanel({
                 type={campo.tipo === "numero" ? "number" : "text"}
                 value={datos[campo.key]}
                 onChange={(e) => actualizarCampo(campo.key, e.target.value)}
-                className="w-full h-9 px-2 rounded-md border text-sm"
+                className="w-full h-9 px-2 rounded-md border text-base"
                 style={{ borderColor: "var(--border-default)" }}
               />
             )}
@@ -132,7 +135,7 @@ export function FormularioIngresoPanel({
       </div>
 
       {error && (
-        <p className="text-xs mb-2" style={{ color: "var(--status-overdue-text)" }}>
+        <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
           {error}
         </p>
       )}
@@ -141,7 +144,7 @@ export function FormularioIngresoPanel({
         <button
           onClick={guardarBorrador}
           disabled={guardando}
-          className="flex-1 h-10 rounded-lg text-sm font-medium border"
+          className="flex-1 h-10 rounded-lg text-base font-medium border"
           style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
         >
           {guardando ? "Guardando..." : "Guardar borrador"}
@@ -150,7 +153,7 @@ export function FormularioIngresoPanel({
         <button
           onClick={completarEtapa}
           disabled={faltanCampos.length > 0 || enviando}
-          className="flex-1 h-10 rounded-lg text-sm font-medium"
+          className="flex-1 h-10 rounded-lg text-base font-medium"
           style={{
             background: faltanCampos.length > 0 ? "var(--surface-page)" : "#3B82F6",
             color: faltanCampos.length > 0 ? "var(--text-secondary)" : "#fff",

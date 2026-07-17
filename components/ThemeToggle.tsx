@@ -23,7 +23,7 @@ export function ThemeToggle() {
     <button
       onClick={alternar}
       aria-label="Cambiar entre modo claro y oscuro"
-      className="text-xs px-2 py-1 rounded-md"
+      className="text-sm px-2 py-1 rounded-md"
       style={{ color: "var(--text-secondary)" }}
     >
       {modo === "dark" ? "☀️ Claro" : "🌙 Oscuro"}

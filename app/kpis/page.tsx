@@ -143,19 +143,19 @@ export default async function KpisPage() {
         <section>
           <div className="mb-4">
             <div className="rounded-lg p-3 inline-block" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-              <p className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>Proyectos activos</p>
+              <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>Proyectos activos</p>
               <p className="text-xl font-medium">{total}</p>
             </div>
           </div>
 
-          <p className="text-xs font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>6 · Proyectos por fase</p>
+          <p className="text-sm font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>6 · Proyectos por fase</p>
           <div className="flex items-end gap-3 h-24 mb-2">
             {FASES_ORDENADAS.map((fase) => {
               const cantidad = proyectosActivos.filter((p) => p.fase_id === fase.id).length;
               return (
                 <div key={fase.id} className="flex flex-col items-center gap-1.5 flex-1">
                   <div className="w-full rounded-t" style={{ height: `${Math.max((cantidad / maxPorFase) * 100, 4)}%`, background: "#3B82F6" }} />
-                  <span className="text-[10px] text-center" style={{ color: "var(--text-secondary)" }}>{fase.nombre.split(" ")[0]}</span>
+                  <span className="text-sm text-center" style={{ color: "var(--text-secondary)" }}>{fase.nombre.split(" ")[0]}</span>
                 </div>
               );
             })}
@@ -164,36 +164,36 @@ export default async function KpisPage() {
 
         {/* Tiempos */}
         <section>
-          <p className="text-sm font-medium mb-3">Tiempos</p>
+          <p className="text-base font-medium mb-3">Tiempos</p>
 
           <div className="grid grid-cols-2 gap-2.5 mb-4">
             <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-              <p className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>2 · Duración promedio de un proyecto</p>
-              <p className="text-lg font-medium">{promedioDiasProyecto ? `${promedioDiasProyecto.toFixed(1)} días` : "Sin datos"}</p>
+              <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>2 · Duración promedio de un proyecto</p>
+              <p className="text-xl font-medium">{promedioDiasProyecto ? `${promedioDiasProyecto.toFixed(1)} días` : "Sin datos"}</p>
             </div>
             <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-              <p className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>3 · Etapa más lenta</p>
-              <p className="text-lg font-medium">{etapaMasLenta ? etapaMasLenta.nombre : "Sin datos"}</p>
-              {etapaMasLenta && <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{etapaMasLenta.promedio.toFixed(1)} h promedio</p>}
+              <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>3 · Etapa más lenta</p>
+              <p className="text-xl font-medium">{etapaMasLenta ? etapaMasLenta.nombre : "Sin datos"}</p>
+              {etapaMasLenta && <p className="text-base" style={{ color: "var(--text-secondary)" }}>{etapaMasLenta.promedio.toFixed(1)} h promedio</p>}
             </div>
           </div>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>1 · Tiempo promedio por etapa</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>1 · Tiempo promedio por etapa</p>
           <div className="rounded-lg p-3 mb-4 max-h-60 overflow-y-auto" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {promediosPorEtapa.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Todavía no hay etapas completadas.</p>}
+            {promediosPorEtapa.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Todavía no hay etapas completadas.</p>}
             {promediosPorEtapa.map((e) => (
-              <div key={e.nombre} className="flex justify-between text-xs py-1">
+              <div key={e.nombre} className="flex justify-between text-sm py-1">
                 <span>{e.orden} · {e.nombre}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{e.promedio.toFixed(1)} h ({e.n})</span>
               </div>
             ))}
           </div>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>4 · Tiempo promedio de respuesta por persona</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>4 · Tiempo promedio de respuesta por persona</p>
           <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {promedioPorPersona.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
+            {promedioPorPersona.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {promedioPorPersona.map((p) => (
-              <div key={p.nombre} className="flex justify-between text-xs py-1">
+              <div key={p.nombre} className="flex justify-between text-sm py-1">
                 <span>{p.nombre}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{p.promedio.toFixed(1)} h promedio ({p.n} etapas)</span>
               </div>
@@ -203,23 +203,23 @@ export default async function KpisPage() {
 
         {/* Volumen */}
         <section>
-          <p className="text-sm font-medium mb-3">Volumen y avance</p>
+          <p className="text-base font-medium mb-3">Volumen y avance</p>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>5 · Proyectos completados por semestre</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>5 · Proyectos completados por semestre</p>
           <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {completadosPorSemestre.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Todavía ningún proyecto se completó.</p>}
+            {completadosPorSemestre.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Todavía ningún proyecto se completó.</p>}
             {completadosPorSemestre.map(([semestre, cantidad]) => (
-              <div key={semestre} className="flex justify-between text-xs py-1">
+              <div key={semestre} className="flex justify-between text-sm py-1">
                 <span>{semestre}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{cantidad} proyecto(s)</span>
               </div>
             ))}
           </div>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>7 · Carga actual por persona</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>7 · Carga actual por persona</p>
           <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
             {Array.from(cargaPorPersona.entries()).map(([nombre, n]) => (
-              <div key={nombre} className="flex justify-between text-xs py-1">
+              <div key={nombre} className="flex justify-between text-sm py-1">
                 <span>{nombre}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{n} proyecto(s)</span>
               </div>
@@ -229,46 +229,46 @@ export default async function KpisPage() {
 
         {/* Formulario de ingreso */}
         <section>
-          <p className="text-sm font-medium mb-3">Datos del formulario de ingreso</p>
+          <p className="text-base font-medium mb-3">Datos del formulario de ingreso</p>
 
           <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            <p className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>10 · Monto total gestionado</p>
-            <p className="text-lg font-medium mb-2">{formatoMoneda(montoTotalGestionado)}</p>
+            <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>10 · Monto total gestionado</p>
+            <p className="text-xl font-medium mb-2">{formatoMoneda(montoTotalGestionado)}</p>
             {Array.from(montoPorSemestre.entries()).sort().map(([semestre, monto]) => (
-              <div key={semestre} className="flex justify-between text-xs py-0.5">
+              <div key={semestre} className="flex justify-between text-sm py-0.5">
                 <span style={{ color: "var(--text-secondary)" }}>{semestre}</span>
                 <span>{formatoMoneda(monto)}</span>
               </div>
             ))}
           </div>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>8 · Proyectos por tipo</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>8 · Proyectos por tipo</p>
           <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {porTipo.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
+            {porTipo.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {porTipo.map((g) => (
-              <div key={g.clave} className="flex justify-between text-xs py-1">
+              <div key={g.clave} className="flex justify-between text-sm py-1">
                 <span>{g.clave}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>
               </div>
             ))}
           </div>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>9 · Proyectos por fuente de financiamiento</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>9 · Proyectos por fuente de financiamiento</p>
           <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {porFinanciamiento.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
+            {porFinanciamiento.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {porFinanciamiento.map((g) => (
-              <div key={g.clave} className="flex justify-between text-xs py-1">
+              <div key={g.clave} className="flex justify-between text-sm py-1">
                 <span>{g.clave}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>
               </div>
             ))}
           </div>
 
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>11 · Distribución geográfica (área/agencia)</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>11 · Distribución geográfica (área/agencia)</p>
           <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {porAgencia.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
+            {porAgencia.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {porAgencia.map((g) => (
-              <div key={g.clave} className="flex justify-between text-xs py-1">
+              <div key={g.clave} className="flex justify-between text-sm py-1">
                 <span>{g.clave}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>
               </div>
@@ -278,12 +278,12 @@ export default async function KpisPage() {
 
         {/* Documentos legales */}
         <section>
-          <p className="text-sm font-medium mb-3">Documentos legales</p>
-          <p className="text-xs mb-1.5" style={{ color: "var(--text-secondary)" }}>12 · Documentos más solicitados</p>
+          <p className="text-base font-medium mb-3">Documentos legales</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>12 · Documentos más solicitados</p>
           <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {documentosOrdenados.length === 0 && <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
+            {documentosOrdenados.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {documentosOrdenados.map((d) => (
-              <div key={d.nombre} className="flex justify-between text-xs py-1">
+              <div key={d.nombre} className="flex justify-between text-sm py-1">
                 <span>{d.nombre}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{d.veces} proyecto(s)</span>
               </div>

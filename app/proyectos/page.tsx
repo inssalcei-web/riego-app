@@ -30,7 +30,7 @@ export default async function ProyectosPage() {
           <div className="flex justify-end mb-4">
             <Link
               href="/proyectos/nuevo"
-              className="text-sm px-4 py-2 rounded-lg text-white font-medium"
+              className="text-base px-4 py-2 rounded-lg text-white font-medium"
               style={{ background: "#3B82F6" }}
             >
               + Crear nuevo proyecto
@@ -43,14 +43,14 @@ export default async function ProyectosPage() {
             const proyectosDeLaFase = proyectosActivos.filter((p) => p.fase_id === fase.id);
             return (
               <div key={fase.id}>
-                <p className="text-xs font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>
+                <p className="text-sm font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>
                   {fase.orden} · {fase.nombre}
-                  <span className="ml-1.5 text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                  <span className="ml-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
                     ({proyectosDeLaFase.length})
                   </span>
                 </p>
                 {proyectosDeLaFase.length === 0 && (
-                  <p className="text-[11px] italic" style={{ color: "var(--text-secondary)" }}>
+                  <p className="text-base italic" style={{ color: "var(--text-secondary)" }}>
                     Sin proyectos
                   </p>
                 )}
@@ -62,14 +62,14 @@ export default async function ProyectosPage() {
           })}
 
           <div>
-            <p className="text-xs font-medium mb-2.5" style={{ color: "var(--status-on-track-text)" }}>
+            <p className="text-sm font-medium mb-2.5" style={{ color: "var(--status-on-track-text)" }}>
               ✓ Proyectos terminados
-              <span className="ml-1.5 text-[10px]" style={{ color: "var(--text-secondary)" }}>
+              <span className="ml-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
                 ({proyectosTerminados.length})
               </span>
             </p>
             {proyectosTerminados.length === 0 && (
-              <p className="text-[11px] italic" style={{ color: "var(--text-secondary)" }}>
+              <p className="text-base italic" style={{ color: "var(--text-secondary)" }}>
                 Sin proyectos
               </p>
             )}

@@ -59,6 +59,9 @@ export function ChecklistPanel({
 
     if (!resultado.ok) {
       setError(resultado.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
+      if (resultado.error?.includes("completada por otra persona")) {
+        setTimeout(() => router.refresh(), 1800);
+      }
       return;
     }
 
@@ -68,7 +71,7 @@ export function ChecklistPanel({
 
   return (
     <div>
-      <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
         Checklist de la etapa
       </p>
 
@@ -81,7 +84,7 @@ export function ChecklistPanel({
             style={{ background: "var(--surface-page)" }}
           >
             <span
-              className="w-4 h-4 rounded border flex items-center justify-center text-[10px]"
+              className="w-4 h-4 rounded border flex items-center justify-center text-sm"
               style={{
                 borderColor: item.completado ? "var(--status-on-track-fill)" : "var(--border-strong)",
                 background: item.completado ? "var(--status-on-track-fill)" : "transparent",
@@ -91,7 +94,7 @@ export function ChecklistPanel({
               {item.completado ? "✓" : ""}
             </span>
             <span
-              className="text-[13px] flex-1"
+              className="text-lg flex-1"
               style={{
                 textDecoration: item.completado ? "line-through" : "none",
                 color: item.completado ? "var(--text-secondary)" : "var(--text-primary)",
@@ -99,7 +102,7 @@ export function ChecklistPanel({
             >
               {item.descripcion}
             </span>
-            <span className="text-[10px]" style={{ color: item.obligatorio ? "var(--status-due-soon-text)" : "var(--text-secondary)" }}>
+            <span className="text-sm" style={{ color: item.obligatorio ? "var(--status-due-soon-text)" : "var(--text-secondary)" }}>
               {item.obligatorio ? "obligatorio" : "opcional"}
             </span>
           </button>
@@ -107,7 +110,7 @@ export function ChecklistPanel({
       </div>
 
       {error && (
-        <p className="text-xs mb-2" style={{ color: "var(--status-overdue-text)" }}>
+        <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
           {error}
         </p>
       )}
@@ -115,7 +118,7 @@ export function ChecklistPanel({
       <button
         onClick={completarEtapa}
         disabled={faltaObligatorio || enviando}
-        className="w-full h-10 rounded-lg text-sm font-medium"
+        className="w-full h-10 rounded-lg text-base font-medium"
         style={{
           background: faltaObligatorio ? "var(--surface-page)" : "#3B82F6",
           color: faltaObligatorio ? "var(--text-secondary)" : "#fff",

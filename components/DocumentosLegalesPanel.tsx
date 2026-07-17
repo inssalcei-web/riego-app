@@ -70,6 +70,9 @@ export function DocumentosLegalesPanel({
 
     if (!resultado.ok) {
       setError(resultado.error ?? "No se pudo completar la etapa. Intenta de nuevo.");
+      if (resultado.error?.includes("completada por otra persona")) {
+        setTimeout(() => router.refresh(), 1800);
+      }
       return;
     }
 
@@ -79,7 +82,7 @@ export function DocumentosLegalesPanel({
 
   return (
     <div>
-      <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
         Documentos disponibles — agrega los que apliquen a este proyecto
       </p>
 
@@ -88,7 +91,7 @@ export function DocumentosLegalesPanel({
           <button
             key={doc.id}
             onClick={() => agregarDocumento(doc)}
-            className="flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-[13px]"
+            className="flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-lg"
             style={{ background: "var(--surface-page)" }}
           >
             <span>{doc.nombre}</span>
@@ -96,19 +99,19 @@ export function DocumentosLegalesPanel({
           </button>
         ))}
         {disponibles.length === 0 && (
-          <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
             Ya agregaste todos los documentos del catálogo.
           </p>
         )}
       </div>
 
-      <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
         Documentos solicitados para este proyecto ({seleccionados.length})
       </p>
 
       <div className="flex flex-col gap-1.5 mb-4">
         {seleccionados.length === 0 && (
-          <p className="text-xs italic" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
             Todavía no agregaste ningún documento.
           </p>
         )}
@@ -121,7 +124,7 @@ export function DocumentosLegalesPanel({
           >
             <button
               onClick={() => toggleCompletado(item)}
-              className="w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0"
+              className="w-4 h-4 rounded border flex items-center justify-center text-sm shrink-0"
               style={{
                 borderColor: item.completado ? "var(--status-on-track-fill)" : "var(--border-strong)",
                 background: item.completado ? "var(--status-on-track-fill)" : "transparent",
@@ -131,7 +134,7 @@ export function DocumentosLegalesPanel({
               {item.completado ? "✓" : ""}
             </button>
             <span
-              className="text-[13px] flex-1"
+              className="text-lg flex-1"
               style={{
                 textDecoration: item.completado ? "line-through" : "none",
                 color: item.completado ? "var(--text-secondary)" : "var(--text-primary)",
@@ -141,7 +144,7 @@ export function DocumentosLegalesPanel({
             </span>
             <button
               onClick={() => quitarDocumento(item.id)}
-              className="text-[11px]"
+              className="text-base"
               style={{ color: "var(--status-overdue-text)" }}
             >
               Quitar
@@ -151,7 +154,7 @@ export function DocumentosLegalesPanel({
       </div>
 
       {error && (
-        <p className="text-xs mb-2" style={{ color: "var(--status-overdue-text)" }}>
+        <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
           {error}
         </p>
       )}
@@ -159,7 +162,7 @@ export function DocumentosLegalesPanel({
       <button
         onClick={completarEtapa}
         disabled={seleccionados.length === 0 || faltaMarcar || enviando}
-        className="w-full h-10 rounded-lg text-sm font-medium"
+        className="w-full h-10 rounded-lg text-base font-medium"
         style={{
           background: seleccionados.length === 0 || faltaMarcar ? "var(--surface-page)" : "#3B82F6",
           color: seleccionados.length === 0 || faltaMarcar ? "var(--text-secondary)" : "#fff",

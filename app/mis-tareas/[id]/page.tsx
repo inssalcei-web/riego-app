@@ -5,6 +5,7 @@ import { ChecklistPanel } from "@/components/ChecklistPanel";
 import { FormularioIngresoPanel } from "@/components/FormularioIngresoPanel";
 import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
+import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
 import { NavBar } from "@/components/NavBar";
 import { ChecklistItemConEstado, MOTIVOS_CIERRE } from "@/lib/types";
 
@@ -45,26 +46,26 @@ export default async function DetalleProyectoPage({
       <NavBar />
       <main className="p-5 max-w-md mx-auto">
         <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}>
-          <p className="font-medium text-base mb-0.5">{proyecto.codigo_proyecto ?? "Sin código"}</p>
-          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+          <p className="font-medium text-lg mb-0.5">{proyecto.codigo_proyecto ?? "Sin código"}</p>
+          <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
             {proyecto.nombre_agricultor ?? "Agricultor sin definir"}
           </p>
 
           {proyecto.finalizado ? (
-            <p className="text-xs mb-4" style={{ color: "var(--status-overdue-text)" }}>
+            <p className="text-sm mb-4" style={{ color: "var(--status-overdue-text)" }}>
               {proyecto.motivo_cierre
                 ? `Cerrado anticipadamente — ${MOTIVOS_CIERRE[proyecto.motivo_cierre] ?? proyecto.motivo_cierre}`
                 : "Proyecto completado"}
             </p>
           ) : (
-            <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
               Etapa {etapa?.orden} de 30 · {etapa?.nombre}
             </p>
           )}
 
           {!proyecto.finalizado && etapa?.mensaje_pendiente && (
             <p
-              className="text-xs mb-4 px-3 py-2 rounded-lg"
+              className="text-sm mb-4 px-3 py-2 rounded-lg"
               style={{ background: "var(--surface-page)", color: "var(--text-secondary)" }}
             >
               {etapa.mensaje_pendiente}
@@ -91,6 +92,14 @@ export default async function DetalleProyectoPage({
 
           {!proyecto.finalizado && usuario.rol_id === "gerente_general" && (
             <CerrarProyectoButton proyectoId={id} usuarioId={usuario.id} />
+          )}
+
+          {["gerente_general", "administrador"].includes(usuario.rol_id) && (
+            <EliminarProyectoButton
+              proyectoId={id}
+              usuarioId={usuario.id}
+              codigoProyecto={proyecto.codigo_proyecto ?? "ELIMINAR"}
+            />
           )}
         </div>
       </main>
