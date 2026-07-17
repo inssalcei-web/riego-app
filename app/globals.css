@@ -17,3 +17,19 @@ body {
 .project-card:hover {
   box-shadow: var(--shadow-card-hover);
 }
+
+/* Los campos de formulario no tenían fondo ni color de letra
+   definidos explícitamente, así que en modo oscuro heredaban letra
+   clara sobre un fondo blanco por defecto del navegador — casi
+   invisible. Se fija acá para toda la app de una sola vez. */
+input,
+select,
+textarea {
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+}
