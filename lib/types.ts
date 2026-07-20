@@ -33,6 +33,7 @@ export interface EtapaDefinicion {
   mensaje_pendiente: string | null;
   mensaje_notificacion: string | null;
   usuario_asignado_id: string | null;
+  multi_responsable: boolean;
 }
 
 export interface ChecklistItemDefinicion {
@@ -41,6 +42,7 @@ export interface ChecklistItemDefinicion {
   descripcion: string;
   obligatorio: boolean;
   orden: number;
+  usuario_asignado_id: string | null;
 }
 
 export interface Cliente {
@@ -110,6 +112,7 @@ export interface ChecklistInstancia {
 export interface ChecklistItemConEstado extends ChecklistItemDefinicion {
   instancia_id: string;
   completado: boolean;
+  usuario_asignado_nombre?: string | null;
 }
 
 export interface TimelineEvento {
