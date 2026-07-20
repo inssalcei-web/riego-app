@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, FASES_ORDENADAS } from "@/lib/data/proyectos";
-import { ProjectCard } from "@/components/ProjectCard";
+import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
 import { NavBar } from "@/components/NavBar";
 import Link from "next/link";
 
@@ -55,7 +55,7 @@ export default async function ProyectosPage() {
                   </p>
                 )}
                 {proyectosDeLaFase.map((p) => (
-                  <ProjectCard key={p.id} proyecto={p} />
+                  <CollapsibleProjectCard key={p.id} proyecto={p} />
                 ))}
               </div>
             );
@@ -74,7 +74,7 @@ export default async function ProyectosPage() {
               </p>
             )}
             {proyectosTerminados.map((p) => (
-              <ProjectCard key={p.id} proyecto={p} />
+              <CollapsibleProjectCard key={p.id} proyecto={p} />
             ))}
           </div>
         </div>

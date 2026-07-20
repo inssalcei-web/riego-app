@@ -23,11 +23,14 @@ async function enriquecerProyectos(
     const fase = etapa ? fasesPorId.get(etapa.fase_id) : undefined;
     const responsable = usuariosPorId.get(p.responsable_actual_id);
 
-    // Para etapas de Administrador (responsabilidad compartida), se
-    // muestra solo el nombre del rol, sin mencionar a una persona
-    // específica — cualquiera de los administradores puede actuar.
-    const responsableNombre =
-      etapa?.rol_id === "administrador" ? "Administrador" : responsable?.nombre ?? "—";
+    // Para etapas de Administrador (responsabilidad compartida) o de
+    // varias personas (etapas 9 y 16), se muestra un texto genérico
+    // en vez de un solo nombre, porque no hay un único dueño.
+    const responsableNombre = etapa?.multi_responsable
+      ? "Varios responsables"
+      : etapa?.rol_id === "administrador"
+      ? "Administrador"
+      : responsable?.nombre ?? "—";
 
     return {
       ...p,
@@ -81,17 +84,32 @@ export async function obtenerMisProyectos(
     .single();
 
   const todos = await obtenerProyectosActivos(supabase);
-  const { data: etapas } = await supabase.from("etapas_definicion").select("id, rol_id");
-  const rolPorEtapaId = new Map((etapas ?? []).map((e: any) => [e.id, e.rol_id]));
+  const { data: etapas } = await supabase.from("etapas_definicion").select("id, rol_id, multi_responsable");
+  const etapaInfoPorId = new Map((etapas ?? []).map((e: any) => [e.id, e]));
+
+  // Etapas donde este usuario tiene un ítem de checklist asignado a
+  // su nombre (las de 3 personas, etapas 9 y 16).
+  const { data: itemsAsignados } = await supabase
+    .from("checklist_items_definicion")
+    .select("etapa_id")
+    .eq("usuario_asignado_id", usuarioId);
+  const etapasAsignadasAlUsuario = new Set((itemsAsignados ?? []).map((i: any) => i.etapa_id));
 
   return todos.filter((p) => {
     if (p.responsable_actual_id === usuarioId) return true;
+
+    const info = etapaInfoPorId.get(p.etapa_actual_id);
+    if (!info) return false;
+
     // Los administradores ven cualquier proyecto que esté en una
-    // etapa de Administrador, sin importar cuál de los dos quedó
-    // guardado como "responsable" en la base de datos.
-    if (usuario?.rol_id === "administrador" && rolPorEtapaId.get(p.etapa_actual_id) === "administrador") {
-      return true;
-    }
+    // etapa de Administrador, sin importar quién quedó como
+    // "responsable" puntual en la base de datos.
+    if (usuario?.rol_id === "administrador" && info.rol_id === "administrador") return true;
+
+    // Etapas de 3 personas (9 y 16): aparece para cualquiera que
+    // tenga un ítem de checklist asignado a su nombre ahí.
+    if (info.multi_responsable && etapasAsignadasAlUsuario.has(p.etapa_actual_id)) return true;
+
     return false;
   });
 }

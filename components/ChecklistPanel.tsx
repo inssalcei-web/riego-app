@@ -25,6 +25,12 @@ export function ChecklistPanel({
   const faltaObligatorio = items.some((i) => i.obligatorio && !i.completado);
 
   async function toggleItem(item: ChecklistItemConEstado) {
+    // Si el ítem está asignado a una persona específica y no es la
+    // que está mirando la pantalla, no se puede marcar.
+    if (item.usuario_asignado_id && item.usuario_asignado_id !== usuarioId) {
+      return;
+    }
+
     const nuevoValor = !item.completado;
 
     // Actualización optimista: se ve el cambio al instante, sin esperar la red
@@ -76,37 +82,50 @@ export function ChecklistPanel({
       </p>
 
       <div className="flex flex-col gap-2 mb-4">
-        {items.map((item) => (
-          <button
-            key={item.instancia_id}
-            onClick={() => toggleItem(item)}
-            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left"
-            style={{ background: "var(--surface-page)" }}
-          >
-            <span
-              className="w-4 h-4 rounded border flex items-center justify-center text-sm"
+        {items.map((item) => {
+          const esDeOtraPersona = item.usuario_asignado_id && item.usuario_asignado_id !== usuarioId;
+          return (
+            <button
+              key={item.instancia_id}
+              onClick={() => toggleItem(item)}
+              disabled={!!esDeOtraPersona}
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left"
               style={{
-                borderColor: item.completado ? "var(--status-on-track-fill)" : "var(--border-strong)",
-                background: item.completado ? "var(--status-on-track-fill)" : "transparent",
-                color: "#fff",
+                background: "var(--surface-page)",
+                opacity: esDeOtraPersona ? 0.55 : 1,
+                cursor: esDeOtraPersona ? "not-allowed" : "pointer",
               }}
             >
-              {item.completado ? "✓" : ""}
-            </span>
-            <span
-              className="text-lg flex-1"
-              style={{
-                textDecoration: item.completado ? "line-through" : "none",
-                color: item.completado ? "var(--text-secondary)" : "var(--text-primary)",
-              }}
-            >
-              {item.descripcion}
-            </span>
-            <span className="text-sm" style={{ color: item.obligatorio ? "var(--status-due-soon-text)" : "var(--text-secondary)" }}>
-              {item.obligatorio ? "obligatorio" : "opcional"}
-            </span>
-          </button>
-        ))}
+              <span
+                className="w-4 h-4 rounded border flex items-center justify-center text-sm"
+                style={{
+                  borderColor: item.completado ? "var(--status-on-track-fill)" : "var(--border-strong)",
+                  background: item.completado ? "var(--status-on-track-fill)" : "transparent",
+                  color: "#fff",
+                }}
+              >
+                {item.completado ? "✓" : ""}
+              </span>
+              <span
+                className="text-lg flex-1"
+                style={{
+                  textDecoration: item.completado ? "line-through" : "none",
+                  color: item.completado ? "var(--text-secondary)" : "var(--text-primary)",
+                }}
+              >
+                {item.descripcion}
+                {item.usuario_asignado_nombre && (
+                  <span className="block text-sm" style={{ color: "var(--text-secondary)" }}>
+                    Asignado a: {item.usuario_asignado_nombre}
+                  </span>
+                )}
+              </span>
+              <span className="text-sm" style={{ color: item.obligatorio ? "var(--status-due-soon-text)" : "var(--text-secondary)" }}>
+                {item.obligatorio ? "obligatorio" : "opcional"}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {error && (

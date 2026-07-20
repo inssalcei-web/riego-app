@@ -79,10 +79,22 @@ Deno.serve(async (req: Request) => {
     .eq("id", usuario_id)
     .single();
 
-  const autorizado =
-    etapaActual.rol_id === "administrador"
-      ? usuarioActuante?.rol_id === "administrador"
-      : proyecto.responsable_actual_id === usuario_id;
+  let autorizado = false;
+
+  if (etapaActual.multi_responsable) {
+    // Etapas de 3 personas (9 y 16): autoriza a cualquiera de las
+    // personas que tienen un ítem de checklist asignado ahí.
+    const { data: asignados } = await supabase
+      .from("checklist_items_definicion")
+      .select("usuario_asignado_id")
+      .eq("etapa_id", etapaActual.id)
+      .not("usuario_asignado_id", "is", null);
+    autorizado = (asignados ?? []).some((a: any) => a.usuario_asignado_id === usuario_id);
+  } else if (etapaActual.rol_id === "administrador") {
+    autorizado = usuarioActuante?.rol_id === "administrador";
+  } else {
+    autorizado = proyecto.responsable_actual_id === usuario_id;
+  }
 
   if (!autorizado) {
     return jsonError("No tienes permiso para completar esta etapa", 403);
@@ -149,10 +161,20 @@ Deno.serve(async (req: Request) => {
   const esUltimaEtapa = !siguienteEtapa;
 
   let siguienteResponsableId: string | null = null;
-  let administradoresParaNotificar: string[] = [];
+  let personasParaNotificar: string[] = [];
 
   if (!esUltimaEtapa) {
-    if (siguienteEtapa.usuario_asignado_id) {
+    if (siguienteEtapa.multi_responsable) {
+      // Etapas de 3 personas: se notifica a las 3, cualquiera puede
+      // completarla una vez que las 3 marcaron su parte.
+      const { data: asignados } = await supabase
+        .from("checklist_items_definicion")
+        .select("usuario_asignado_id")
+        .eq("etapa_id", siguienteEtapa.id)
+        .not("usuario_asignado_id", "is", null);
+      personasParaNotificar = (asignados ?? []).map((a: any) => a.usuario_asignado_id);
+      siguienteResponsableId = personasParaNotificar[0] ?? null;
+    } else if (siguienteEtapa.usuario_asignado_id) {
       // Asignación fija por etapa (Ingenieros de proyecto)
       siguienteResponsableId = siguienteEtapa.usuario_asignado_id;
     } else if (siguienteEtapa.rol_id === "administrador") {
@@ -164,8 +186,8 @@ Deno.serve(async (req: Request) => {
         .select("id")
         .eq("rol_id", "administrador")
         .eq("activo", true);
-      administradoresParaNotificar = (administradores ?? []).map((a: any) => a.id);
-      siguienteResponsableId = administradoresParaNotificar[0] ?? null;
+      personasParaNotificar = (administradores ?? []).map((a: any) => a.id);
+      siguienteResponsableId = personasParaNotificar[0] ?? null;
     } else {
       // Un único usuario tiene ese rol (Gerente general, Encargado legal)
       const { data: usuarioPorRol } = await supabase
@@ -221,20 +243,20 @@ Deno.serve(async (req: Request) => {
     tiempo_ejecucion_ms: Date.now() - startedAt,
   });
 
-  // Si la etapa recién completada era de Administrador, se borran las
-  // notificaciones pendientes de ESTE proyecto para el otro administrador
-  // (ya no aplica, porque alguien ya la completó).
-  if (etapaActual.rol_id === "administrador") {
+  // Si la etapa recién completada era de Administrador o de 3
+  // personas, se borran las notificaciones pendientes de ESTE
+  // proyecto para el resto del grupo (ya no aplica, se completó).
+  if (etapaActual.rol_id === "administrador" || etapaActual.multi_responsable) {
     await supabase.from("notificaciones").delete().eq("proyecto_id", proyecto_id).eq("leida", false);
   }
 
-  if (administradoresParaNotificar.length > 0) {
+  if (personasParaNotificar.length > 0) {
     const mensaje =
       siguienteEtapa.mensaje_notificacion ??
       `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
 
     await supabase.from("notificaciones").insert(
-      administradoresParaNotificar.map((id) => ({
+      personasParaNotificar.map((id) => ({
         usuario_id: id,
         proyecto_id,
         mensaje: `${mensaje} — Proyecto: ${proyecto.nombre}`,

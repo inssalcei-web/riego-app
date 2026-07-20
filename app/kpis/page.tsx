@@ -110,7 +110,6 @@ export default async function KpisPage() {
 
   const porTipo = agruparPor("tipo_proyecto");
   const porFinanciamiento = agruparPor("fuente_financiamiento");
-  const porAgencia = agruparPor("area_agencia");
   const montoTotalGestionado = conFormulario.reduce((acc: number, p: any) => acc + (aNumero(p.datos_formulario?.monto_total_proyecto) ?? 0), 0);
 
   const montoPorSemestre = new Map<string, number>();
@@ -257,17 +256,6 @@ export default async function KpisPage() {
           <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
             {porFinanciamiento.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {porFinanciamiento.map((g) => (
-              <div key={g.clave} className="flex justify-between text-sm py-1">
-                <span>{g.clave}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>
-              </div>
-            ))}
-          </div>
-
-          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>11 · Distribución geográfica (área/agencia)</p>
-          <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {porAgencia.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
-            {porAgencia.map((g) => (
               <div key={g.clave} className="flex justify-between text-sm py-1">
                 <span>{g.clave}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>

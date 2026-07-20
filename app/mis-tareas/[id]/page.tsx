@@ -118,16 +118,13 @@ async function ChecklistPanelServerWrapper({
 }) {
   const supabase = await createClient();
 
-  const { data: itemsDefinicion } = await supabase
-    .from("checklist_items_definicion")
-    .select("*")
-    .eq("etapa_id", etapaId)
-    .order("orden");
+  const [{ data: itemsDefinicion }, { data: instancias }, { data: usuarios }] = await Promise.all([
+    supabase.from("checklist_items_definicion").select("*").eq("etapa_id", etapaId).order("orden"),
+    supabase.from("checklist_instancia").select("*").eq("proyecto_id", proyectoId),
+    supabase.from("usuarios").select("id, nombre"),
+  ]);
 
-  const { data: instancias } = await supabase
-    .from("checklist_instancia")
-    .select("*")
-    .eq("proyecto_id", proyectoId);
+  const usuariosPorId = new Map((usuarios ?? []).map((u: any) => [u.id, u.nombre]));
 
   const items: ChecklistItemConEstado[] = (itemsDefinicion ?? []).map((def) => {
     const instancia = instancias?.find((i) => i.item_definicion_id === def.id);
@@ -135,6 +132,7 @@ async function ChecklistPanelServerWrapper({
       ...def,
       instancia_id: instancia?.id ?? "",
       completado: instancia?.completado ?? false,
+      usuario_asignado_nombre: def.usuario_asignado_id ? usuariosPorId.get(def.usuario_asignado_id) ?? null : null,
     };
   });
 

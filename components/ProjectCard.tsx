@@ -47,9 +47,11 @@ export function ProjectCard({ proyecto }: { proyecto: ProyectoConDetalle }) {
       <p className="text-base mb-0.5" style={{ color: "var(--text-secondary)" }}>
         {proyecto.nombre_agricultor ?? "Agricultor sin definir"}
       </p>
-      <p className="text-base mb-2" style={{ color: "var(--text-secondary)" }}>
-        {proyecto.fuente_financiamiento ?? "Financiamiento: pendiente"}
-      </p>
+      {proyecto.fuente_financiamiento && (
+        <p className="text-base mb-2" style={{ color: "var(--text-secondary)" }}>
+          {proyecto.fuente_financiamiento}
+        </p>
+      )}
 
       {!proyecto.finalizado && (
         <>
