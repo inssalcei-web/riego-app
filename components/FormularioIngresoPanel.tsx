@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { completarEtapa as llamarCompletarEtapa } from "@/lib/complete-stage-client";
 import { CAMPOS_FORMULARIO_INGRESO } from "@/lib/formulario-ingreso-config";
 
+type ValorCampo = string | string[];
+
 export function FormularioIngresoPanel({
   proyectoId,
   usuarioId,
@@ -17,26 +19,47 @@ export function FormularioIngresoPanel({
   usuarioId: string;
   codigoProyecto: string;
   nombreAgricultor: string;
-  datosIniciales: Record<string, string | number>;
+  datosIniciales: Record<string, any>;
 }) {
   const router = useRouter();
   const supabase = createClient();
 
-  const [datos, setDatos] = useState<Record<string, string>>(
+  const [datos, setDatos] = useState<Record<string, ValorCampo>>(
     Object.fromEntries(
-      CAMPOS_FORMULARIO_INGRESO.map((c) => [c.key, String(datosIniciales?.[c.key] ?? "")])
+      CAMPOS_FORMULARIO_INGRESO.map((c) => {
+        const inicial = datosIniciales?.[c.key];
+        if (c.tipo === "multiselect") {
+          return [c.key, Array.isArray(inicial) ? inicial : []];
+        }
+        return [c.key, inicial !== undefined && inicial !== null ? String(inicial) : ""];
+      })
     )
   );
   const [guardando, setGuardando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const faltanCampos = CAMPOS_FORMULARIO_INGRESO.filter(
-    (c) => c.obligatorio && !datos[c.key]?.trim()
-  );
+  function valorVacio(campo: (typeof CAMPOS_FORMULARIO_INGRESO)[number]) {
+    const valor = datos[campo.key];
+    if (campo.tipo === "multiselect") return !Array.isArray(valor) || valor.length === 0;
+    return !String(valor ?? "").trim();
+  }
+
+  const faltanCampos = CAMPOS_FORMULARIO_INGRESO.filter((c) => c.obligatorio && valorVacio(c));
 
   function actualizarCampo(key: string, value: string) {
     setDatos((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function alternarOpcionMultiple(key: string, opcion: string) {
+    setDatos((prev) => {
+      const actual = Array.isArray(prev[key]) ? (prev[key] as string[]) : [];
+      const yaEsta = actual.includes(opcion);
+      return {
+        ...prev,
+        [key]: yaEsta ? actual.filter((o) => o !== opcion) : [...actual, opcion],
+      };
+    });
   }
 
   async function guardarBorrador() {
@@ -49,7 +72,6 @@ export function FormularioIngresoPanel({
     setEnviando(true);
     setError(null);
 
-    // Guarda los datos actuales antes de intentar cerrar la etapa
     await supabase.from("proyectos").update({ datos_formulario: datos }).eq("id", proyectoId);
 
     const resultado = await llamarCompletarEtapa(supabase, proyectoId, usuarioId);
@@ -109,7 +131,7 @@ export function FormularioIngresoPanel({
 
             {campo.tipo === "select" ? (
               <select
-                value={datos[campo.key]}
+                value={datos[campo.key] as string}
                 onChange={(e) => actualizarCampo(campo.key, e.target.value)}
                 className="w-full h-9 px-2 rounded-md border text-base"
                 style={{ borderColor: "var(--border-default)" }}
@@ -121,10 +143,26 @@ export function FormularioIngresoPanel({
                   </option>
                 ))}
               </select>
+            ) : campo.tipo === "multiselect" ? (
+              <div className="flex flex-col gap-1.5 p-2 rounded-md border" style={{ borderColor: "var(--border-default)" }}>
+                {campo.opciones.map((op) => {
+                  const seleccionado = Array.isArray(datos[campo.key]) && (datos[campo.key] as string[]).includes(op);
+                  return (
+                    <label key={op} className="flex items-center gap-2 text-base cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() => alternarOpcionMultiple(campo.key, op)}
+                      />
+                      {op}
+                    </label>
+                  );
+                })}
+              </div>
             ) : (
               <input
                 type={campo.tipo === "numero" ? "number" : "text"}
-                value={datos[campo.key]}
+                value={datos[campo.key] as string}
                 onChange={(e) => actualizarCampo(campo.key, e.target.value)}
                 className="w-full h-9 px-2 rounded-md border text-base"
                 style={{ borderColor: "var(--border-default)" }}
