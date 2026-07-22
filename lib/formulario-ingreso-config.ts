@@ -1,19 +1,19 @@
-// Configuración del formulario de ingreso de proyectos (etapa 3),
-// tomada exactamente de la pestaña "Formulario ingreso de proyectos"
-// del Excel. Cada campo define su clave, etiqueta, tipo de dato,
-// y si corresponde, las opciones de la lista desplegable.
+// Configuración del formulario de ingreso de proyectos (etapa 3).
+// Los 4 campos de montos se sacaron de acá — ahora se llenan en la
+// etapa "Postulación" (ver montos-postulacion-config.ts).
 
 export type CampoFormulario =
   | { key: string; label: string; tipo: "texto"; obligatorio: boolean }
   | { key: string; label: string; tipo: "numero"; obligatorio: boolean }
-  | { key: string; label: string; tipo: "select"; opciones: string[]; obligatorio: boolean };
+  | { key: string; label: string; tipo: "select"; opciones: string[]; obligatorio: boolean }
+  | { key: string; label: string; tipo: "multiselect"; opciones: string[]; obligatorio: boolean };
 
 export const CAMPOS_FORMULARIO_INGRESO: CampoFormulario[] = [
   { key: "rut_agricultor", label: "RUT agricultor", tipo: "texto", obligatorio: true },
   {
     key: "tipo_proyecto",
     label: "Tipo de proyecto",
-    tipo: "select",
+    tipo: "multiselect",
     obligatorio: true,
     opciones: [
       "Revestimiento canales",
@@ -45,10 +45,6 @@ export const CAMPOS_FORMULARIO_INGRESO: CampoFormulario[] = [
     obligatorio: true,
     opciones: ["Indap", "CNR", "Privado"],
   },
-  { key: "monto_formulacion", label: "Monto formulación", tipo: "numero", obligatorio: true },
-  { key: "monto_construccion", label: "Monto construcción", tipo: "numero", obligatorio: true },
-  { key: "monto_aporte_propio", label: "Monto aporte propio", tipo: "numero", obligatorio: true },
-  { key: "monto_total_proyecto", label: "Monto total proyecto", tipo: "numero", obligatorio: true },
   { key: "comuna", label: "Comuna", tipo: "texto", obligatorio: true },
   { key: "direccion", label: "Dirección", tipo: "texto", obligatorio: true },
   { key: "coordenadas_n", label: "Coordenadas N", tipo: "numero", obligatorio: true },
