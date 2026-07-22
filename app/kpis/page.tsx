@@ -93,7 +93,10 @@ export default async function KpisPage() {
   });
 
   // ---------- 8, 9, 10, 11: datos del formulario de ingreso ----------
-  const conFormulario = (todosProyectos ?? []).filter((p: any) => p.datos_formulario?.tipo_proyecto);
+  const conFormulario = (todosProyectos ?? []).filter((p: any) => {
+    const tipo = p.datos_formulario?.tipo_proyecto;
+    return Array.isArray(tipo) ? tipo.length > 0 : !!tipo;
+  });
 
   function agruparPor(campo: string) {
     const grupos = new Map<string, { cantidad: number; monto: number }>();
@@ -108,7 +111,25 @@ export default async function KpisPage() {
     return Array.from(grupos.entries()).map(([clave, v]) => ({ clave, ...v }));
   }
 
-  const porTipo = agruparPor("tipo_proyecto");
+  // "Tipo de proyecto" ahora es de selección múltiple: un proyecto
+  // con 2 tipos marcados cuenta una vez en cada uno. No se muestra
+  // monto acá a propósito, porque el monto es uno solo por proyecto
+  // y sumarlo por tipo duplicaría el total (un mismo proyecto puede
+  // aparecer en más de un tipo).
+  function agruparPorTipoMultiple() {
+    const grupos = new Map<string, number>();
+    conFormulario.forEach((p: any) => {
+      const tipos: string[] = Array.isArray(p.datos_formulario?.tipo_proyecto)
+        ? p.datos_formulario.tipo_proyecto
+        : [p.datos_formulario?.tipo_proyecto].filter(Boolean);
+      tipos.forEach((tipo) => {
+        grupos.set(tipo, (grupos.get(tipo) ?? 0) + 1);
+      });
+    });
+    return Array.from(grupos.entries()).map(([clave, cantidad]) => ({ clave, cantidad }));
+  }
+
+  const porTipo = agruparPorTipoMultiple();
   const porFinanciamiento = agruparPor("fuente_financiamiento");
   const montoTotalGestionado = conFormulario.reduce((acc: number, p: any) => acc + (aNumero(p.datos_formulario?.monto_total_proyecto) ?? 0), 0);
 
@@ -247,7 +268,7 @@ export default async function KpisPage() {
             {porTipo.map((g) => (
               <div key={g.clave} className="flex justify-between text-sm py-1">
                 <span>{g.clave}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} proyecto(s)</span>
               </div>
             ))}
           </div>
