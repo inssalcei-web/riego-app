@@ -4,6 +4,7 @@ import { obtenerUsuarioActual } from "@/lib/data/proyectos";
 import { ChecklistPanel } from "@/components/ChecklistPanel";
 import { FormularioIngresoPanel } from "@/components/FormularioIngresoPanel";
 import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
+import { MontosPostulacionPanel } from "@/components/MontosPostulacionPanel";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
 import { NavBar } from "@/components/NavBar";
@@ -59,7 +60,7 @@ export default async function DetalleProyectoPage({
             </p>
           ) : (
             <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-              Etapa {etapa?.orden} de 30 · {etapa?.nombre}
+              Etapa {etapa?.orden} de 27 · {etapa?.nombre}
             </p>
           )}
 
@@ -84,6 +85,14 @@ export default async function DetalleProyectoPage({
 
           {!proyecto.finalizado && etapa?.tipo_accion === "documentos_legales" && (
             <DocumentosLegalesPanelServerWrapper proyectoId={id} usuarioId={usuario.id} />
+          )}
+
+          {!proyecto.finalizado && etapa?.requiere_montos && (
+            <MontosPostulacionPanel
+              proyectoId={id}
+              esAdministrador={usuario.rol_id === "administrador"}
+              datosIniciales={proyecto.datos_formulario ?? {}}
+            />
           )}
 
           {!proyecto.finalizado && (!etapa || etapa.tipo_accion === "checkbox") && (
