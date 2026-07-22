@@ -1,179 +1,71 @@
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerUsuarioActual } from "@/lib/data/proyectos";
-import { ChecklistPanel } from "@/components/ChecklistPanel";
-import { FormularioIngresoPanel } from "@/components/FormularioIngresoPanel";
-import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
-import { MontosPostulacionPanel } from "@/components/MontosPostulacionPanel";
-import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
-import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
+import { obtenerMisProyectos } from "@/lib/data/proyectos";
+import { ProjectCard } from "@/components/ProjectCard";
 import { NavBar } from "@/components/NavBar";
-import { ChecklistItemConEstado, MOTIVOS_CIERRE } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function DetalleProyectoPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+export default async function MisTareasPage() {
   const supabase = await createClient();
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const usuario = await obtenerUsuarioActual(supabase);
-  if (!usuario) redirect("/login");
+  if (!user) {
+    console.error("[mis-tareas] Sin usuario de sesión. Error de auth:", authError);
+    redirect("/login");
+  }
 
-  const { data: proyecto } = await supabase
-    .from("proyectos")
+  const { data: usuario, error: errorUsuario } = await supabase
+    .from("usuarios")
     .select("*")
-    .eq("id", id)
+    .eq("auth_user_id", user.id)
     .single();
 
-  if (!proyecto) notFound();
+  if (errorUsuario || !usuario) {
+    console.error("[mis-tareas] No se encontró usuario en tabla `usuarios`:", errorUsuario);
+    return (
+      <div className="min-h-screen">
+        <NavBar />
+        <main className="p-5 max-w-md mx-auto">
+          <p className="font-medium text-base mb-2">No se pudo cargar tu usuario</p>
+          <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
+            Sesión conectada como: {user.email}
+          </p>
+          <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
+            ID de sesión (auth_user_id): {user.id}
+          </p>
+          <p className="text-sm" style={{ color: "var(--status-overdue-text)" }}>
+            Error de base de datos: {errorUsuario?.message ?? "sin datos"}
+          </p>
+        </main>
+      </div>
+    );
+  }
 
-  const { data: etapa } = await supabase
-    .from("etapas_definicion")
-    .select("*")
-    .eq("id", proyecto.etapa_actual_id)
-    .single();
+  const proyectos = await obtenerMisProyectos(supabase, usuario.id);
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-md mx-auto">
-        <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}>
-          <p className="font-medium text-lg mb-0.5">{proyecto.codigo_proyecto ?? "Sin código"}</p>
-          <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
-            {proyecto.nombre_agricultor ?? "Agricultor sin definir"}
+        <p className="font-medium text-base mb-4">
+          Mis tareas <span style={{ color: "var(--text-secondary)" }}>({proyectos.length})</span>
+        </p>
+
+        {proyectos.length === 0 && (
+          <p className="text-base" style={{ color: "var(--text-secondary)" }}>
+            No tienes proyectos asignados en este momento.
           </p>
+        )}
 
-          {proyecto.finalizado ? (
-            <p className="text-sm mb-4" style={{ color: "var(--status-overdue-text)" }}>
-              {proyecto.motivo_cierre
-                ? `Cerrado anticipadamente — ${MOTIVOS_CIERRE[proyecto.motivo_cierre] ?? proyecto.motivo_cierre}`
-                : "Proyecto completado"}
-            </p>
-          ) : (
-            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-              Etapa {etapa?.orden} de 27 · {etapa?.nombre}
-            </p>
-          )}
-
-          {!proyecto.finalizado && etapa?.mensaje_pendiente && (
-            <p
-              className="text-sm mb-4 px-3 py-2 rounded-lg"
-              style={{ background: "var(--surface-page)", color: "var(--text-secondary)" }}
-            >
-              {etapa.mensaje_pendiente}
-            </p>
-          )}
-
-          {!proyecto.finalizado && etapa?.tipo_accion === "formulario" && (
-            <FormularioIngresoPanel
-              proyectoId={id}
-              usuarioId={usuario.id}
-              codigoProyecto={proyecto.codigo_proyecto ?? ""}
-              nombreAgricultor={proyecto.nombre_agricultor ?? ""}
-              datosIniciales={proyecto.datos_formulario ?? {}}
-            />
-          )}
-
-          {!proyecto.finalizado && etapa?.tipo_accion === "documentos_legales" && (
-            <DocumentosLegalesPanelServerWrapper proyectoId={id} usuarioId={usuario.id} />
-          )}
-
-          {!proyecto.finalizado && etapa?.requiere_montos && (
-            <MontosPostulacionPanel
-              proyectoId={id}
-              esAdministrador={usuario.rol_id === "administrador"}
-              datosIniciales={proyecto.datos_formulario ?? {}}
-            />
-          )}
-
-          {!proyecto.finalizado && (!etapa || etapa.tipo_accion === "checkbox") && (
-            <ChecklistPanelServerWrapper proyectoId={id} etapaId={proyecto.etapa_actual_id} usuarioId={usuario.id} />
-          )}
-
-          {!proyecto.finalizado && usuario.rol_id === "gerente_general" && (
-            <CerrarProyectoButton proyectoId={id} usuarioId={usuario.id} />
-          )}
-
-          {["gerente_general", "administrador"].includes(usuario.rol_id) && (
-            <EliminarProyectoButton
-              proyectoId={id}
-              usuarioId={usuario.id}
-              codigoProyecto={proyecto.codigo_proyecto ?? "ELIMINAR"}
-            />
-          )}
-        </div>
+        {proyectos.map((p) => (
+          <ProjectCard key={p.id} proyecto={p} />
+        ))}
       </main>
     </div>
-  );
-}
-
-async function ChecklistPanelServerWrapper({
-  proyectoId,
-  etapaId,
-  usuarioId,
-}: {
-  proyectoId: string;
-  etapaId: number;
-  usuarioId: string;
-}) {
-  const supabase = await createClient();
-
-  const [{ data: itemsDefinicion }, { data: instancias }, { data: usuarios }] = await Promise.all([
-    supabase.from("checklist_items_definicion").select("*").eq("etapa_id", etapaId).order("orden"),
-    supabase.from("checklist_instancia").select("*").eq("proyecto_id", proyectoId),
-    supabase.from("usuarios").select("id, nombre"),
-  ]);
-
-  const usuariosPorId = new Map((usuarios ?? []).map((u: any) => [u.id, u.nombre]));
-
-  const items: ChecklistItemConEstado[] = (itemsDefinicion ?? []).map((def) => {
-    const instancia = instancias?.find((i) => i.item_definicion_id === def.id);
-    return {
-      ...def,
-      instancia_id: instancia?.id ?? "",
-      completado: instancia?.completado ?? false,
-      usuario_asignado_nombre: def.usuario_asignado_id ? usuariosPorId.get(def.usuario_asignado_id) ?? null : null,
-    };
-  });
-
-  return <ChecklistPanel proyectoId={proyectoId} itemsIniciales={items} usuarioId={usuarioId} />;
-}
-
-async function DocumentosLegalesPanelServerWrapper({
-  proyectoId,
-  usuarioId,
-}: {
-  proyectoId: string;
-  usuarioId: string;
-}) {
-  const supabase = await createClient();
-
-  const [{ data: catalogo }, { data: seleccionados }] = await Promise.all([
-    supabase.from("documentos_legales_catalogo").select("*").order("nombre"),
-    supabase.from("proyecto_documentos_legales").select("*").eq("proyecto_id", proyectoId),
-  ]);
-
-  const catalogoPorId = new Map((catalogo ?? []).map((c) => [c.id, c]));
-  const seleccionadosConNombre = (seleccionados ?? []).map((s) => ({
-    ...s,
-    nombre: catalogoPorId.get(s.documento_id)?.nombre ?? "Documento",
-  }));
-
-  return (
-    <DocumentosLegalesPanel
-      proyectoId={proyectoId}
-      usuarioId={usuarioId}
-      catalogo={catalogo ?? []}
-      seleccionadosIniciales={seleccionadosConNombre}
-    />
   );
 }
