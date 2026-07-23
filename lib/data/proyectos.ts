@@ -1,8 +1,14 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { ProyectoConDetalle, calcularEstadoCumplimiento } from "@/lib/types";
-import flujoConfig from "@/lib/flujo-config.json";
 
-const fasesPorId = new Map(flujoConfig.fases.map((f) => [f.id, f]));
+// Las fases se leen SIEMPRE directo de la base de datos (tabla
+// `fases`), no de un archivo de configuración fijo — así, cualquier
+// cambio de fases hecho por SQL se refleja solo en la pantalla, sin
+// depender de que el código se actualice cada vez.
+export async function obtenerFasesOrdenadas(supabase: SupabaseClient) {
+  const { data } = await supabase.from("fases").select("*").order("orden");
+  return data ?? [];
+}
 
 async function enriquecerProyectos(
   supabase: SupabaseClient,
@@ -10,13 +16,15 @@ async function enriquecerProyectos(
 ): Promise<ProyectoConDetalle[]> {
   if (proyectos.length === 0) return [];
 
-  const [{ data: etapas }, { data: usuarios }] = await Promise.all([
+  const [{ data: etapas }, { data: usuarios }, { data: fases }] = await Promise.all([
     supabase.from("etapas_definicion").select("*"),
     supabase.from("usuarios").select("*"),
+    supabase.from("fases").select("*"),
   ]);
 
   const etapasPorId = new Map((etapas ?? []).map((e) => [e.id, e]));
   const usuariosPorId = new Map((usuarios ?? []).map((u) => [u.id, u]));
+  const fasesPorId = new Map((fases ?? []).map((f) => [f.id, f]));
 
   return proyectos.map((p: any) => {
     const etapa = etapasPorId.get(p.etapa_actual_id);
@@ -41,7 +49,7 @@ async function enriquecerProyectos(
       fase_nombre: fase?.nombre ?? "—",
       responsable_nombre: responsableNombre,
       fuente_financiamiento: p.datos_formulario?.fuente_financiamiento ?? null,
-      porcentaje_avance: Math.round(((etapa?.orden ?? 0) / 30) * 100),
+      porcentaje_avance: Math.round(((etapa?.orden ?? 0) / 27) * 100),
       estado_cumplimiento: calcularEstadoCumplimiento(p.fecha_objetivo, p.finalizado),
     };
   });
@@ -87,8 +95,6 @@ export async function obtenerMisProyectos(
   const { data: etapas } = await supabase.from("etapas_definicion").select("id, rol_id, multi_responsable");
   const etapaInfoPorId = new Map((etapas ?? []).map((e: any) => [e.id, e]));
 
-  // Etapas donde este usuario tiene un ítem de checklist asignado a
-  // su nombre (las de 3 personas, etapas 9 y 16).
   const { data: itemsAsignados } = await supabase
     .from("checklist_items_definicion")
     .select("etapa_id")
@@ -101,13 +107,7 @@ export async function obtenerMisProyectos(
     const info = etapaInfoPorId.get(p.etapa_actual_id);
     if (!info) return false;
 
-    // Los administradores ven cualquier proyecto que esté en una
-    // etapa de Administrador, sin importar quién quedó como
-    // "responsable" puntual en la base de datos.
     if (usuario?.rol_id === "administrador" && info.rol_id === "administrador") return true;
-
-    // Etapas de 3 personas (9 y 16): aparece para cualquiera que
-    // tenga un ítem de checklist asignado a su nombre ahí.
     if (info.multi_responsable && etapasAsignadasAlUsuario.has(p.etapa_actual_id)) return true;
 
     return false;
@@ -128,5 +128,3 @@ export async function obtenerUsuarioActual(supabase: SupabaseClient) {
 
   return data;
 }
-
-export const FASES_ORDENADAS = flujoConfig.fases;

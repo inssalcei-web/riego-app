@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, obtenerUsuarioActual, FASES_ORDENADAS } from "@/lib/data/proyectos";
+import { obtenerProyectosActivos, obtenerUsuarioActual, obtenerFasesOrdenadas } from "@/lib/data/proyectos";
 import { NavBar } from "@/components/NavBar";
 
 export const dynamic = "force-dynamic";
@@ -32,12 +32,14 @@ export default async function KpisPage() {
 
   const [
     proyectosActivos,
+    fases,
     { data: todosProyectos },
     { data: duracionEtapas },
     { data: duracionProyectos },
     { data: documentosSolicitados },
   ] = await Promise.all([
     obtenerProyectosActivos(supabase),
+    obtenerFasesOrdenadas(supabase),
     supabase.from("proyectos").select("*"),
     supabase.from("v_kpi_duracion_etapas").select("*"),
     supabase.from("v_kpi_duracion_proyectos").select("*"),
@@ -153,7 +155,7 @@ export default async function KpisPage() {
     .slice(0, 10);
 
   const total = proyectosActivos.length;
-  const maxPorFase = Math.max(1, ...FASES_ORDENADAS.map((f) => proyectosActivos.filter((p) => p.fase_id === f.id).length));
+  const maxPorFase = Math.max(1, ...fases.map((f: any) => proyectosActivos.filter((p) => p.fase_id === f.id).length));
 
   return (
     <div className="min-h-screen">
@@ -170,7 +172,7 @@ export default async function KpisPage() {
 
           <p className="text-sm font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>6 · Proyectos por fase</p>
           <div className="flex items-end gap-3 h-24 mb-2">
-            {FASES_ORDENADAS.map((fase) => {
+            {fases.map((fase: any) => {
               const cantidad = proyectosActivos.filter((p) => p.fase_id === fase.id).length;
               return (
                 <div key={fase.id} className="flex flex-col items-center gap-1.5 flex-1">

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, FASES_ORDENADAS } from "@/lib/data/proyectos";
+import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, obtenerFasesOrdenadas } from "@/lib/data/proyectos";
 import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
 import { NavBar } from "@/components/NavBar";
 import Link from "next/link";
@@ -17,9 +17,10 @@ export default async function ProyectosPage() {
 
   const usuario = await obtenerUsuarioActual(supabase);
 
-  const [proyectosActivos, proyectosTerminados] = await Promise.all([
+  const [proyectosActivos, proyectosTerminados, fases] = await Promise.all([
     obtenerProyectosActivos(supabase),
     obtenerProyectosTerminados(supabase),
+    obtenerFasesOrdenadas(supabase),
   ]);
 
   return (
@@ -38,8 +39,8 @@ export default async function ProyectosPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {FASES_ORDENADAS.map((fase) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {fases.map((fase: any) => {
             const proyectosDeLaFase = proyectosActivos.filter((p) => p.fase_id === fase.id);
             return (
               <div key={fase.id}>
