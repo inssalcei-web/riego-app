@@ -4,6 +4,8 @@ import { obtenerMisProyectos } from "@/lib/data/proyectos";
 import { ProjectCard } from "@/components/ProjectCard";
 import { NavBar } from "@/components/NavBar";
 
+// Fuerza a que esta página siempre se calcule de nuevo en el servidor,
+// sin usar ninguna versión guardada en caché por Next.js.
 export const dynamic = "force-dynamic";
 
 export default async function MisTareasPage() {

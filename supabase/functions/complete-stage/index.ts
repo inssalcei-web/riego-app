@@ -17,15 +17,18 @@ const CAMPOS_OBLIGATORIOS_FORMULARIO = [
   "empresa_formuladora",
   "empresa_constructora",
   "fuente_financiamiento",
-  "monto_formulacion",
-  "monto_construccion",
-  "monto_aporte_propio",
-  "monto_total_proyecto",
   "comuna",
   "direccion",
   "coordenadas_n",
   "coordenadas_e",
   "area_agencia",
+];
+
+const CAMPOS_MONTOS_POSTULACION = [
+  "monto_formulacion",
+  "monto_construccion",
+  "monto_aporte_propio",
+  "monto_total_proyecto",
 ];
 
 const corsHeaders = {
@@ -103,9 +106,11 @@ Deno.serve(async (req: Request) => {
   // Validación según el tipo de acción de la etapa actual
   if (etapaActual.tipo_accion === "formulario") {
     const datos = proyecto.datos_formulario ?? {};
-    const faltantes = CAMPOS_OBLIGATORIOS_FORMULARIO.filter(
-      (campo) => datos[campo] === undefined || datos[campo] === null || datos[campo] === ""
-    );
+    const faltantes = CAMPOS_OBLIGATORIOS_FORMULARIO.filter((campo) => {
+      const valor = datos[campo];
+      if (Array.isArray(valor)) return valor.length === 0;
+      return valor === undefined || valor === null || valor === "";
+    });
     if (faltantes.length > 0) {
       return jsonError(`Faltan campos del formulario: ${faltantes.join(", ")}`, 400);
     }
@@ -149,6 +154,19 @@ Deno.serve(async (req: Request) => {
 
     if (faltaObligatorio) {
       return jsonError("Hay ítems obligatorios sin completar", 400);
+    }
+  }
+
+  // Validación aparte: si esta etapa requiere los montos de
+  // postulación (además de su checklist normal), deben estar todos
+  // completos antes de poder avanzar.
+  if (etapaActual.requiere_montos) {
+    const datos = proyecto.datos_formulario ?? {};
+    const faltantesMontos = CAMPOS_MONTOS_POSTULACION.filter(
+      (campo) => datos[campo] === undefined || datos[campo] === null || datos[campo] === ""
+    );
+    if (faltantesMontos.length > 0) {
+      return jsonError(`Faltan los montos de postulación: ${faltantesMontos.join(", ")}`, 400);
     }
   }
 

@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ProyectoConDetalle, MOTIVOS_CIERRE } from "@/lib/types";
+import { DetalleProyectoModal } from "@/components/DetalleProyectoModal";
 
-export function CollapsibleProjectCard({ proyecto }: { proyecto: ProyectoConDetalle }) {
+export function CollapsibleProjectCard({
+  proyecto,
+  rolUsuario,
+}: {
+  proyecto: ProyectoConDetalle;
+  rolUsuario: string | null;
+}) {
   const [abierta, setAbierta] = useState(false);
+  const [modalAbierto, setModalAbierto] = useState(false);
+
+  const puedeVerDetalle = rolUsuario === "gerente_general" || rolUsuario === "administrador";
 
   const cerradoAnticipado = proyecto.finalizado && proyecto.motivo_cierre;
 
@@ -90,10 +99,30 @@ export function CollapsibleProjectCard({ proyecto }: { proyecto: ProyectoConDeta
             {proyecto.responsable_nombre}
           </p>
 
-          <Link href={`/mis-tareas/${proyecto.id}`} className="text-sm font-medium" style={{ color: "#3B82F6" }}>
-            Ver detalle completo →
-          </Link>
+          {/* Solo Gerente general y Administrador pueden ver el detalle
+              completo — y lo ven en una ventana de solo lectura, para
+              no "empujar" la etapa de otra persona a su bandeja de
+              Mis tareas sin querer. El resto de los roles no ve este
+              link en absoluto. */}
+          {puedeVerDetalle && !proyecto.finalizado && (
+            <button
+              onClick={() => setModalAbierto(true)}
+              className="text-sm font-medium"
+              style={{ color: "#3B82F6" }}
+            >
+              Ver detalle completo →
+            </button>
+          )}
         </div>
+      )}
+
+      {modalAbierto && (
+        <DetalleProyectoModal
+          proyectoId={proyecto.id}
+          codigoProyecto={proyecto.codigo_proyecto ?? "Sin código"}
+          etapaOrdenActual={proyecto.etapa_orden}
+          onClose={() => setModalAbierto(false)}
+        />
       )}
     </div>
   );

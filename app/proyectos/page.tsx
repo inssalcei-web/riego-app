@@ -55,7 +55,7 @@ export default async function ProyectosPage() {
                   </p>
                 )}
                 {proyectosDeLaFase.map((p) => (
-                  <CollapsibleProjectCard key={p.id} proyecto={p} />
+                  <CollapsibleProjectCard key={p.id} proyecto={p} rolUsuario={usuario?.rol_id ?? null} />
                 ))}
               </div>
             );
@@ -74,7 +74,7 @@ export default async function ProyectosPage() {
               </p>
             )}
             {proyectosTerminados.map((p) => (
-              <CollapsibleProjectCard key={p.id} proyecto={p} />
+              <CollapsibleProjectCard key={p.id} proyecto={p} rolUsuario={usuario?.rol_id ?? null} />
             ))}
           </div>
         </div>

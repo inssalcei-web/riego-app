@@ -34,6 +34,7 @@ export interface EtapaDefinicion {
   mensaje_notificacion: string | null;
   usuario_asignado_id: string | null;
   multi_responsable: boolean;
+  requiere_montos: boolean;
 }
 
 export interface ChecklistItemDefinicion {
