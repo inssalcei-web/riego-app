@@ -1,7 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, obtenerFasesOrdenadas } from "@/lib/data/proyectos";
+import {
+  obtenerProyectosActivos,
+  obtenerProyectosTerminados,
+  obtenerUsuarioActual,
+  obtenerFasesOrdenadas,
+  obtenerProyectosPendientesRetomar,
+} from "@/lib/data/proyectos";
 import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
+import { RetomarProyectoCard } from "@/components/RetomarProyectoCard";
 import { NavBar } from "@/components/NavBar";
 import Link from "next/link";
 
@@ -17,60 +24,23 @@ export default async function ProyectosPage() {
 
   const usuario = await obtenerUsuarioActual(supabase);
 
-  const [proyectosActivos, proyectosTerminados, fases] = await Promise.all([
+  const [proyectosActivos, proyectosTerminados, fases, proyectosPendientesRetomar] = await Promise.all([
     obtenerProyectosActivos(supabase),
     obtenerProyectosTerminados(supabase),
     obtenerFasesOrdenadas(supabase),
+    usuario?.rol_id === "gerente_general" ? obtenerProyectosPendientesRetomar(supabase) : Promise.resolve([]),
   ]);
 
-  // Mejora 1: si soy Gerente general, reviso si hay proyectos
-  // cerrados anticipadamente cuya fecha de retomar ya se cumplió, y
-  // que todavía no se avisaron. Se muestra un aviso simple acá
-  // mismo, al primer ingreso del día.
-  let proyectosParaRetomar: { codigo_proyecto: string; nombre_agricultor: string }[] = [];
-  if (usuario?.rol_id === "gerente_general") {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const { data: pendientes } = await supabase
-      .from("proyectos")
-      .select("id, codigo_proyecto, nombre_agricultor")
-      .eq("finalizado", true)
-      .not("motivo_cierre", "is", null)
-      .not("fecha_retomar", "is", null)
-      .lte("fecha_retomar", hoy)
-      .eq("aviso_retomar_enviado", false);
-
-    if (pendientes && pendientes.length > 0) {
-      proyectosParaRetomar = pendientes.map((p: any) => ({
-        codigo_proyecto: p.codigo_proyecto,
-        nombre_agricultor: p.nombre_agricultor,
-      }));
-      await supabase
-        .from("proyectos")
-        .update({ aviso_retomar_enviado: true })
-        .in("id", pendientes.map((p: any) => p.id));
-    }
-  }
+  // La fase 1 (Preparación) es donde vive la etapa 2 ("Visita
+  // técnica") — ahí es donde debe reaparecer un proyecto retomado,
+  // así que la pregunta "¿Retomar proyecto?" se muestra en esa
+  // misma columna, como si el proyecto recién se hubiera creado.
+  const primeraFase = fases[0];
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5">
-        {proyectosParaRetomar.length > 0 && (
-          <div
-            className="mb-4 p-3 rounded-lg border"
-            style={{ borderColor: "var(--status-due-soon-fill)", background: "var(--status-due-soon-bg)" }}
-          >
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--status-due-soon-text)" }}>
-              📅 Es momento de revisar si conviene retomar:
-            </p>
-            {proyectosParaRetomar.map((p, i) => (
-              <p key={i} className="text-sm" style={{ color: "var(--status-due-soon-text)" }}>
-                {p.codigo_proyecto} — {p.nombre_agricultor}
-              </p>
-            ))}
-          </div>
-        )}
-
         {usuario?.rol_id === "gerente_general" && (
           <div className="flex justify-end mb-4">
             <Link
@@ -86,6 +56,8 @@ export default async function ProyectosPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {fases.map((fase: any) => {
             const proyectosDeLaFase = proyectosActivos.filter((p) => p.fase_id === fase.id);
+            const esPrimeraFase = primeraFase && fase.id === primeraFase.id;
+
             return (
               <div key={fase.id}>
                 <p className="text-sm font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>
@@ -94,7 +66,19 @@ export default async function ProyectosPage() {
                     ({proyectosDeLaFase.length})
                   </span>
                 </p>
-                {proyectosDeLaFase.length === 0 && (
+
+                {esPrimeraFase &&
+                  proyectosPendientesRetomar.map((p: any) => (
+                    <RetomarProyectoCard
+                      key={p.id}
+                      proyectoId={p.id}
+                      codigoProyecto={p.codigo_proyecto ?? "Sin código"}
+                      nombreAgricultor={p.nombre_agricultor ?? "Agricultor sin definir"}
+                      usuarioId={usuario!.id}
+                    />
+                  ))}
+
+                {proyectosDeLaFase.length === 0 && proyectosPendientesRetomar.length === 0 && (
                   <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
                     Sin proyectos
                   </p>

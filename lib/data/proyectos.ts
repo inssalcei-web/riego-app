@@ -106,7 +106,36 @@ export async function obtenerProyectosTerminados(
     .order("creado_en", { ascending: false });
 
   if (error) throw error;
-  return enriquecerProyectos(supabase, proyectos ?? []);
+
+  // Los proyectos cerrados anticipadamente con una fecha de retomar
+  // pendiente (todavía no llegó la fecha, o llegó pero el Gerente
+  // general no decidió qué hacer) NO se muestran acá — quedan
+  // completamente ocultos hasta que llegue el momento, o aparecen
+  // en el tablero de proyectos activos con la pregunta de retomar.
+  const visibles = (proyectos ?? []).filter(
+    (p: any) => !(p.motivo_cierre && p.fecha_retomar && !p.aviso_retomar_enviado)
+  );
+
+  return enriquecerProyectos(supabase, visibles);
+}
+
+// Proyectos cerrados anticipadamente cuya fecha de retomar ya se
+// cumplió, y que todavía esperan que el Gerente general decida si
+// se retoman o no.
+export async function obtenerProyectosPendientesRetomar(
+  supabase: SupabaseClient
+): Promise<{ id: string; codigo_proyecto: string; nombre_agricultor: string }[]> {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("proyectos")
+    .select("id, codigo_proyecto, nombre_agricultor")
+    .eq("finalizado", true)
+    .not("motivo_cierre", "is", null)
+    .not("fecha_retomar", "is", null)
+    .lte("fecha_retomar", hoy)
+    .eq("aviso_retomar_enviado", false);
+
+  return data ?? [];
 }
 
 export async function obtenerMisProyectos(
@@ -144,22 +173,64 @@ export async function obtenerMisProyectos(
     misInstancias = data ?? [];
   }
 
-  return todos.filter((p) => {
-    if (p.responsable_actual_id === usuarioId) return true;
+  // Para las etapas que requieren montos de postulación (etapa 15):
+  // el responsable del checklist normal (el ingeniero) deja de ver
+  // la tarea apenas termina SU parte, aunque la etapa en sí no
+  // pueda cerrarse todavía porque falta que Administrador llene los
+  // montos. Se necesita saber, por proyecto, si ese checklist ya
+  // quedó 100% completo.
+  const etapasConMontos = (etapas ?? []).filter((e: any) => e.requiere_montos).map((e: any) => e.id);
+  let itemsChecklistMontos: any[] = [];
+  let instanciasChecklistMontos: any[] = [];
+  if (etapasConMontos.length > 0) {
+    const { data: items } = await supabase
+      .from("checklist_items_definicion")
+      .select("id, etapa_id, obligatorio")
+      .in("etapa_id", etapasConMontos);
+    itemsChecklistMontos = items ?? [];
 
+    const idsItemsMontos = itemsChecklistMontos.map((i: any) => i.id);
+    if (idsItemsMontos.length > 0) {
+      const { data: instancias } = await supabase
+        .from("checklist_instancia")
+        .select("proyecto_id, item_definicion_id, completado")
+        .in("item_definicion_id", idsItemsMontos);
+      instanciasChecklistMontos = instancias ?? [];
+    }
+  }
+
+  function checklistYaCompletoParaMontos(proyectoId: string, etapaId: number) {
+    const itemsDeEstaEtapa = itemsChecklistMontos.filter((i: any) => i.etapa_id === etapaId);
+    if (itemsDeEstaEtapa.length === 0) return false;
+    return itemsDeEstaEtapa.every((item: any) => {
+      if (!item.obligatorio) return true;
+      const instancia = instanciasChecklistMontos.find(
+        (ins) => ins.proyecto_id === proyectoId && ins.item_definicion_id === item.id
+      );
+      return instancia?.completado === true;
+    });
+  }
+
+  return todos.filter((p) => {
     const info = etapaInfoPorId.get(p.etapa_actual_id);
+
+    if (p.responsable_actual_id === usuarioId) {
+      // Caso especial: si esta etapa requiere montos y YO soy el
+      // responsable del checklist (no de los montos), y ya marqué
+      // todo mi checklist, dejo de verla — aunque la etapa siga
+      // abierta esperando que Administrador llene los montos.
+      if (info?.requiere_montos && checklistYaCompletoParaMontos(p.id, p.etapa_actual_id)) {
+        // no retorna true acá; sigue evaluando las demás condiciones
+      } else {
+        return true;
+      }
+    }
+
     if (!info) return false;
 
-    // Administrador ve cualquier proyecto en etapa de Administrador.
     if (usuario?.rol_id === "administrador" && info.rol_id === "administrador") return true;
-
-    // Administrador también ve las etapas que requieren montos de
-    // postulación, aunque el checklist general sea de otro rol.
     if (usuario?.rol_id === "administrador" && info.requiere_montos) return true;
 
-    // Etapas de 3 personas: aparece SOLO si todavía no marqué mi
-    // propio ítem — apenas lo marco, deja de aparecerme a mí, y
-    // sigue viéndose para quienes falten.
     if (info.multi_responsable) {
       const miItemId = misItemsPorEtapa.get(p.etapa_actual_id);
       if (miItemId) {

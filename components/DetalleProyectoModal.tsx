@@ -139,7 +139,7 @@ export function DetalleProyectoModal({
             etapa actual — antes solo se podía si el proyecto ya era
             una tarea propia. */}
         {puedeGestionar && usuarioId && (
-          <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border-default)" }}>
+          <div className="mt-4 pt-3 border-t flex flex-col gap-2" style={{ borderColor: "var(--border-default)" }}>
             {!finalizado && rolUsuario === "gerente_general" && (
               <CerrarProyectoButton proyectoId={proyectoId} usuarioId={usuarioId} onSuccess={onClose} />
             )}
