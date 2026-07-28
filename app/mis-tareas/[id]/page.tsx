@@ -7,6 +7,7 @@ import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
 import { MontosPostulacionPanel } from "@/components/MontosPostulacionPanel";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
+import { RetrocederEtapaButton } from "@/components/RetrocederEtapaButton";
 import { NavBar } from "@/components/NavBar";
 import { ChecklistItemConEstado, MOTIVOS_CIERRE } from "@/lib/types";
 
@@ -97,6 +98,14 @@ export default async function DetalleProyectoPage({
 
           {!proyecto.finalizado && (!etapa || etapa.tipo_accion === "checkbox") && (
             <ChecklistPanelServerWrapper proyectoId={id} etapaId={proyecto.etapa_actual_id} usuarioId={usuario.id} />
+          )}
+
+          {!proyecto.finalizado && ["gerente_general", "administrador"].includes(usuario.rol_id) && etapa && etapa.orden > 1 && (
+            <RetrocederEtapaButton
+              proyectoId={id}
+              usuarioId={usuario.id}
+              etapaActualNombre={etapa.nombre}
+            />
           )}
 
           {!proyecto.finalizado && usuario.rol_id === "gerente_general" && (

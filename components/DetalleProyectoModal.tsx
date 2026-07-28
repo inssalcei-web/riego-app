@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
+import { RetrocederEtapaButton } from "@/components/RetrocederEtapaButton";
 
 interface EtapaConResponsable {
   orden: number;
@@ -140,6 +141,14 @@ export function DetalleProyectoModal({
             una tarea propia. */}
         {puedeGestionar && usuarioId && (
           <div className="mt-4 pt-3 border-t flex flex-col gap-2" style={{ borderColor: "var(--border-default)" }}>
+            {!finalizado && etapaOrdenActual > 1 && (
+              <RetrocederEtapaButton
+                proyectoId={proyectoId}
+                usuarioId={usuarioId}
+                etapaActualNombre={etapas.find((e) => e.esActual)?.nombre ?? ""}
+                onSuccess={onClose}
+              />
+            )}
             {!finalizado && rolUsuario === "gerente_general" && (
               <CerrarProyectoButton proyectoId={proyectoId} usuarioId={usuarioId} onSuccess={onClose} />
             )}
