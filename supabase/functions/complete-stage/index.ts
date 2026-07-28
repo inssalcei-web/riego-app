@@ -94,6 +94,15 @@ Deno.serve(async (req: Request) => {
     autorizado = proyecto.responsable_actual_id === usuario_id;
   }
 
+  // Etapas con montos de postulación (15): además del responsable
+  // normal del checklist, CUALQUIER Administrador puede intentar
+  // cerrarla — así, sea quien sea que complete su parte al final
+  // (el ingeniero o el administrador), esa misma persona puede
+  // presionar "Completar etapa" y que funcione.
+  if (etapaActual.requiere_montos && usuarioActuante?.rol_id === "administrador") {
+    autorizado = true;
+  }
+
   if (!autorizado) {
     return jsonError("No tienes permiso para completar esta etapa", 403);
   }
@@ -257,7 +266,7 @@ Deno.serve(async (req: Request) => {
     tiempo_ejecucion_ms: Date.now() - startedAt,
   });
 
-  if (etapaActual.rol_id === "administrador" || etapaActual.multi_responsable) {
+  if (etapaActual.rol_id === "administrador" || etapaActual.multi_responsable || etapaActual.requiere_montos) {
     await supabase.from("notificaciones").delete().eq("proyecto_id", proyecto_id).eq("leida", false);
   }
 

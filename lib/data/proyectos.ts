@@ -1,6 +1,13 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { ProyectoConDetalle, calcularEstadoCumplimiento } from "@/lib/types";
 
+const CAMPOS_MONTOS = ["monto_formulacion", "monto_construccion", "monto_aporte_propio", "monto_total_proyecto"];
+
+function montosCompletos(datosFormulario: Record<string, any> | null | undefined): boolean {
+  const datos = datosFormulario ?? {};
+  return CAMPOS_MONTOS.every((c) => datos[c] !== undefined && datos[c] !== null && datos[c] !== "");
+}
+
 // Las fases se leen siempre directo de la base de datos.
 export async function obtenerFasesOrdenadas(supabase: SupabaseClient) {
   const { data } = await supabase.from("fases").select("*").order("orden");
@@ -27,8 +34,8 @@ async function enriquecerProyectos(
   const usuariosPorId = new Map((usuarios ?? []).map((u) => [u.id, u]));
   const fasesPorId = new Map((fases ?? []).map((f) => [f.id, f]));
 
-  // Para las etapas de 3 personas, se necesita saber quién ya marcó
-  // su parte y quién falta, para cada proyecto en particular.
+  // Para las etapas de varias personas, se necesita saber quién ya
+  // marcó su parte y quién falta, para cada proyecto en particular.
   const idsItemsMulti = (itemsMulti ?? []).map((i: any) => i.id);
   const proyectoIds = proyectos.map((p) => p.id);
   let instanciasMulti: any[] = [];
@@ -39,6 +46,41 @@ async function enriquecerProyectos(
       .in("proyecto_id", proyectoIds)
       .in("item_definicion_id", idsItemsMulti);
     instanciasMulti = data ?? [];
+  }
+
+  // Para las etapas que además requieren montos (etapa 15), se
+  // necesita saber si el checklist "normal" (del ingeniero) ya
+  // quedó completo, junto con el estado de los montos.
+  const etapasConMontos = (etapas ?? []).filter((e: any) => e.requiere_montos).map((e: any) => e.id);
+  let itemsChecklistMontos: any[] = [];
+  let instanciasChecklistMontos: any[] = [];
+  if (etapasConMontos.length > 0) {
+    const { data: items } = await supabase
+      .from("checklist_items_definicion")
+      .select("id, etapa_id, obligatorio")
+      .in("etapa_id", etapasConMontos);
+    itemsChecklistMontos = items ?? [];
+
+    const idsItemsMontos = itemsChecklistMontos.map((i: any) => i.id);
+    if (idsItemsMontos.length > 0) {
+      const { data: instancias } = await supabase
+        .from("checklist_instancia")
+        .select("proyecto_id, item_definicion_id, completado")
+        .in("item_definicion_id", idsItemsMontos);
+      instanciasChecklistMontos = instancias ?? [];
+    }
+  }
+
+  function checklistCompleto(proyectoId: string, etapaId: number) {
+    const itemsDeEstaEtapa = itemsChecklistMontos.filter((i: any) => i.etapa_id === etapaId);
+    if (itemsDeEstaEtapa.length === 0) return false;
+    return itemsDeEstaEtapa.every((item: any) => {
+      if (!item.obligatorio) return true;
+      const instancia = instanciasChecklistMontos.find(
+        (ins) => ins.proyecto_id === proyectoId && ins.item_definicion_id === item.id
+      );
+      return instancia?.completado === true;
+    });
   }
 
   return proyectos.map((p: any) => {
@@ -61,6 +103,18 @@ async function enriquecerProyectos(
         })
         .map((item: any) => usuariosPorId.get(item.usuario_asignado_id)?.nombre)
         .filter(Boolean);
+      responsableNombre = faltantes.length > 0 ? faltantes.join(", ") : "Todos completaron";
+    } else if (etapa?.requiere_montos) {
+      // Etapa con 2 partes independientes: el checklist del
+      // ingeniero, y los montos del Administrador. Se muestra solo
+      // quién falta de las dos partes.
+      const faltantes: string[] = [];
+      if (!checklistCompleto(p.id, etapa.id)) {
+        faltantes.push(responsable?.nombre ?? "Ingeniero(a) de proyectos");
+      }
+      if (!montosCompletos(p.datos_formulario)) {
+        faltantes.push("Administrador");
+      }
       responsableNombre = faltantes.length > 0 ? faltantes.join(", ") : "Todos completaron";
     } else if (etapa?.rol_id === "administrador") {
       responsableNombre = "Administrador";
@@ -107,11 +161,6 @@ export async function obtenerProyectosTerminados(
 
   if (error) throw error;
 
-  // Los proyectos cerrados anticipadamente con una fecha de retomar
-  // pendiente (todavía no llegó la fecha, o llegó pero el Gerente
-  // general no decidió qué hacer) NO se muestran acá — quedan
-  // completamente ocultos hasta que llegue el momento, o aparecen
-  // en el tablero de proyectos activos con la pregunta de retomar.
   const visibles = (proyectos ?? []).filter(
     (p: any) => !(p.motivo_cierre && p.fecha_retomar && !p.aviso_retomar_enviado)
   );
@@ -119,9 +168,6 @@ export async function obtenerProyectosTerminados(
   return enriquecerProyectos(supabase, visibles);
 }
 
-// Proyectos cerrados anticipadamente cuya fecha de retomar ya se
-// cumplió, y que todavía esperan que el Gerente general decida si
-// se retoman o no.
 export async function obtenerProyectosPendientesRetomar(
   supabase: SupabaseClient
 ): Promise<{ id: string; codigo_proyecto: string; nombre_agricultor: string }[]> {
@@ -155,8 +201,7 @@ export async function obtenerMisProyectos(
     .select("id, rol_id, multi_responsable, requiere_montos");
   const etapaInfoPorId = new Map((etapas ?? []).map((e: any) => [e.id, e]));
 
-  // Ítems de checklist de etapas de 3 personas asignados a MÍ,
-  // junto con su estado (para saber si ya marqué mi parte o no).
+  // Ítems de checklist de etapas de varias personas asignados a MÍ.
   const { data: misItemsMulti } = await supabase
     .from("checklist_items_definicion")
     .select("id, etapa_id")
@@ -173,12 +218,9 @@ export async function obtenerMisProyectos(
     misInstancias = data ?? [];
   }
 
-  // Para las etapas que requieren montos de postulación (etapa 15):
-  // el responsable del checklist normal (el ingeniero) deja de ver
-  // la tarea apenas termina SU parte, aunque la etapa en sí no
-  // pueda cerrarse todavía porque falta que Administrador llene los
-  // montos. Se necesita saber, por proyecto, si ese checklist ya
-  // quedó 100% completo.
+  // Para las etapas que requieren montos: necesito saber si el
+  // checklist normal (del ingeniero) ya está completo, para decidir
+  // si a MÍ (si soy ese ingeniero) me sigue apareciendo o no.
   const etapasConMontos = (etapas ?? []).filter((e: any) => e.requiere_montos).map((e: any) => e.id);
   let itemsChecklistMontos: any[] = [];
   let instanciasChecklistMontos: any[] = [];
@@ -199,7 +241,7 @@ export async function obtenerMisProyectos(
     }
   }
 
-  function checklistYaCompletoParaMontos(proyectoId: string, etapaId: number) {
+  function checklistCompleto(proyectoId: string, etapaId: number) {
     const itemsDeEstaEtapa = itemsChecklistMontos.filter((i: any) => i.etapa_id === etapaId);
     if (itemsDeEstaEtapa.length === 0) return false;
     return itemsDeEstaEtapa.every((item: any) => {
@@ -213,24 +255,10 @@ export async function obtenerMisProyectos(
 
   return todos.filter((p) => {
     const info = etapaInfoPorId.get(p.etapa_actual_id);
+    if (!info) return p.responsable_actual_id === usuarioId;
 
-    if (p.responsable_actual_id === usuarioId) {
-      // Caso especial: si esta etapa requiere montos y YO soy el
-      // responsable del checklist (no de los montos), y ya marqué
-      // todo mi checklist, dejo de verla — aunque la etapa siga
-      // abierta esperando que Administrador llene los montos.
-      if (info?.requiere_montos && checklistYaCompletoParaMontos(p.id, p.etapa_actual_id)) {
-        // no retorna true acá; sigue evaluando las demás condiciones
-      } else {
-        return true;
-      }
-    }
-
-    if (!info) return false;
-
-    if (usuario?.rol_id === "administrador" && info.rol_id === "administrador") return true;
-    if (usuario?.rol_id === "administrador" && info.requiere_montos) return true;
-
+    // Etapas de varias personas (9, 16): aparece SOLO si todavía no
+    // marqué mi propio ítem.
     if (info.multi_responsable) {
       const miItemId = misItemsPorEtapa.get(p.etapa_actual_id);
       if (miItemId) {
@@ -238,11 +266,31 @@ export async function obtenerMisProyectos(
           (ins) => ins.proyecto_id === p.id && ins.item_definicion_id === miItemId
         );
         const yaCompleteMiParte = miInstancia?.completado === true;
-        if (!yaCompleteMiParte) return true;
+        return !yaCompleteMiParte;
       }
+      return false;
     }
 
-    return false;
+    // Etapas con montos de postulación (15): dos partes
+    // independientes — el checklist del ingeniero, y los montos del
+    // Administrador. Cada quien deja de verla apenas termina SU
+    // parte, sin importar si la otra parte ya terminó o no.
+    if (info.requiere_montos) {
+      const esElResponsableDelChecklist = p.responsable_actual_id === usuarioId;
+      if (esElResponsableDelChecklist) {
+        return !checklistCompleto(p.id, p.etapa_actual_id);
+      }
+      if (usuario?.rol_id === "administrador") {
+        return !montosCompletos(p.datos_formulario);
+      }
+      return false;
+    }
+
+    // Administrador ve cualquier proyecto en etapa de Administrador
+    // (responsabilidad compartida entre Patricio y Angelo).
+    if (usuario?.rol_id === "administrador" && info.rol_id === "administrador") return true;
+
+    return p.responsable_actual_id === usuarioId;
   });
 }
 
