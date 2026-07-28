@@ -1,8 +1,5 @@
 // ============================================================
 // Edge Function: cerrar-proyecto
-//
-// Permite al Gerente general cerrar un proyecto anticipadamente,
-// en cualquier etapa, con un motivo obligatorio.
 // ============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -25,7 +22,7 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const { proyecto_id, usuario_id, motivo } = await req.json();
+  const { proyecto_id, usuario_id, motivo, fecha_retomar } = await req.json();
 
   if (!MOTIVOS_VALIDOS.includes(motivo)) {
     return jsonError("Motivo de cierre inválido", 400);
@@ -62,13 +59,20 @@ Deno.serve(async (req: Request) => {
 
   await supabase
     .from("proyectos")
-    .update({ finalizado: true, motivo_cierre: motivo })
+    .update({
+      finalizado: true,
+      motivo_cierre: motivo,
+      fecha_retomar: fecha_retomar || null,
+      aviso_retomar_enviado: false,
+    })
     .eq("id", proyecto_id);
 
   await supabase.from("timeline_eventos").insert({
     proyecto_id,
     tipo: "observacion",
-    descripcion: `Proyecto cerrado anticipadamente. Motivo: ${motivo}`,
+    descripcion: fecha_retomar
+      ? `Proyecto cerrado anticipadamente. Motivo: ${motivo}. Retomar el: ${fecha_retomar}`
+      : `Proyecto cerrado anticipadamente. Motivo: ${motivo}`,
     usuario_id,
   });
 

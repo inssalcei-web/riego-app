@@ -1,7 +1,5 @@
 import type { Config } from "tailwindcss";
 
-// Usa exactamente los colores definidos en 01_Design_System.md /
-// design-tokens.css — no se agregan tonos nuevos acá.
 const config: Config = {
   darkMode: ["class", '[data-mode="dark"]'],
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],

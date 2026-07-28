@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerMisProyectos } from "@/lib/data/proyectos";
-import { ProjectCard } from "@/components/ProjectCard";
+import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
 import { NavBar } from "@/components/NavBar";
 
-// Fuerza a que esta página siempre se calcule de nuevo en el servidor,
-// sin usar ninguna versión guardada en caché por Next.js.
 export const dynamic = "force-dynamic";
 
 export default async function MisTareasPage() {
@@ -65,7 +63,7 @@ export default async function MisTareasPage() {
         )}
 
         {proyectos.map((p) => (
-          <ProjectCard key={p.id} proyecto={p} />
+          <CollapsibleProjectCard key={p.id} proyecto={p} modo="mis-tareas" />
         ))}
       </main>
     </div>

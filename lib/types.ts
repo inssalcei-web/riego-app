@@ -1,6 +1,3 @@
-// Tipos que reflejan 1:1 las tablas de schema.sql.
-// Si el esquema cambia, este archivo se actualiza junto con él.
-
 export interface Rol {
   id: string;
   nombre: string;
@@ -65,8 +62,10 @@ export interface Proyecto {
   fecha_objetivo: string | null;
   finalizado: boolean;
   motivo_cierre: string | null;
+  fecha_retomar: string | null;
+  aviso_retomar_enviado: boolean;
   creado_en: string;
-  datos_formulario: Record<string, string | number>;
+  datos_formulario: Record<string, any>;
 }
 
 export const MOTIVOS_CIERRE: Record<string, string> = {
@@ -76,19 +75,6 @@ export const MOTIVOS_CIERRE: Record<string, string> = {
   cliente_desiste: "Cliente desiste",
 };
 
-export interface DocumentoLegalCatalogo {
-  id: number;
-  nombre: string;
-}
-
-export interface ProyectoDocumentoLegal {
-  id: string;
-  proyecto_id: string;
-  documento_id: number;
-  completado: boolean;
-}
-
-// Forma "enriquecida" que arma la UI, uniendo proyecto + etapa + cliente + responsable
 export interface ProyectoConDetalle extends Proyecto {
   cliente_nombre: string;
   etapa_nombre: string;
@@ -134,8 +120,18 @@ export interface Notificacion {
   creado_en: string;
 }
 
-// Calcula el estado de cumplimiento por color, en base a la fecha objetivo.
-// Regla: atrasado si ya pasó la fecha objetivo; por vencer si faltan <= 5 días; si no, en plazo.
+export interface DocumentoLegalCatalogo {
+  id: number;
+  nombre: string;
+}
+
+export interface ProyectoDocumentoLegal {
+  id: string;
+  proyecto_id: string;
+  documento_id: number;
+  completado: boolean;
+}
+
 export function calcularEstadoCumplimiento(
   fechaObjetivo: string | null,
   finalizado: boolean

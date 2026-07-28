@@ -25,15 +25,12 @@ export function ChecklistPanel({
   const faltaObligatorio = items.some((i) => i.obligatorio && !i.completado);
 
   async function toggleItem(item: ChecklistItemConEstado) {
-    // Si el ítem está asignado a una persona específica y no es la
-    // que está mirando la pantalla, no se puede marcar.
     if (item.usuario_asignado_id && item.usuario_asignado_id !== usuarioId) {
       return;
     }
 
     const nuevoValor = !item.completado;
 
-    // Actualización optimista: se ve el cambio al instante, sin esperar la red
     setItems((prev) =>
       prev.map((i) => (i.instancia_id === item.instancia_id ? { ...i, completado: nuevoValor } : i))
     );
@@ -48,7 +45,6 @@ export function ChecklistPanel({
       .eq("id", item.instancia_id);
 
     if (error) {
-      // Revertir si falló
       setItems((prev) =>
         prev.map((i) => (i.instancia_id === item.instancia_id ? { ...i, completado: !nuevoValor } : i))
       );

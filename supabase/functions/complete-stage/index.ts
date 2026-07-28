@@ -50,9 +50,6 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Consultas separadas (sin unión automática) para evitar el error
-  // de "relación ambigua" que da Supabase cuando hay más de un
-  // camino posible entre dos tablas.
   const { data: proyecto, error: errProyecto } = await supabase
     .from("proyectos")
     .select("*")
@@ -85,8 +82,6 @@ Deno.serve(async (req: Request) => {
   let autorizado = false;
 
   if (etapaActual.multi_responsable) {
-    // Etapas de 3 personas (9 y 16): autoriza a cualquiera de las
-    // personas que tienen un ítem de checklist asignado ahí.
     const { data: asignados } = await supabase
       .from("checklist_items_definicion")
       .select("usuario_asignado_id")
@@ -127,10 +122,6 @@ Deno.serve(async (req: Request) => {
       return jsonError("Hay documentos legales sin marcar como completados", 400);
     }
   } else {
-    // Solo se revisan los ítems de checklist que pertenecen a la
-    // ETAPA ACTUAL — antes se revisaban los de las 30 etapas juntas,
-    // lo cual bloqueaba el avance aunque la etapa actual sí estuviera
-    // completa.
     const { data: itemsDeEstaEtapa } = await supabase
       .from("checklist_items_definicion")
       .select("id, obligatorio")
@@ -158,8 +149,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // Validación aparte: si esta etapa requiere los montos de
-  // postulación (además de su checklist normal), deben estar todos
-  // completos antes de poder avanzar.
+  // postulación, deben estar todos completos antes de avanzar.
   if (etapaActual.requiere_montos) {
     const datos = proyecto.datos_formulario ?? {};
     const faltantesMontos = CAMPOS_MONTOS_POSTULACION.filter(
@@ -183,8 +173,6 @@ Deno.serve(async (req: Request) => {
 
   if (!esUltimaEtapa) {
     if (siguienteEtapa.multi_responsable) {
-      // Etapas de 3 personas: se notifica a las 3, cualquiera puede
-      // completarla una vez que las 3 marcaron su parte.
       const { data: asignados } = await supabase
         .from("checklist_items_definicion")
         .select("usuario_asignado_id")
@@ -193,12 +181,8 @@ Deno.serve(async (req: Request) => {
       personasParaNotificar = (asignados ?? []).map((a: any) => a.usuario_asignado_id);
       siguienteResponsableId = personasParaNotificar[0] ?? null;
     } else if (siguienteEtapa.usuario_asignado_id) {
-      // Asignación fija por etapa (Ingenieros de proyecto)
       siguienteResponsableId = siguienteEtapa.usuario_asignado_id;
     } else if (siguienteEtapa.rol_id === "administrador") {
-      // Responsabilidad compartida: cualquiera de los administradores
-      // puede completarla. Se guarda uno como referencia visual, pero
-      // se notifica a todos los que tengan ese rol.
       const { data: administradores } = await supabase
         .from("usuarios")
         .select("id")
@@ -207,7 +191,6 @@ Deno.serve(async (req: Request) => {
       personasParaNotificar = (administradores ?? []).map((a: any) => a.id);
       siguienteResponsableId = personasParaNotificar[0] ?? null;
     } else {
-      // Un único usuario tiene ese rol (Gerente general, Encargado legal)
       const { data: usuarioPorRol } = await supabase
         .from("usuarios")
         .select("id")
@@ -217,13 +200,26 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       siguienteResponsableId = usuarioPorRol?.id ?? null;
     }
+
+    // Si la etapa siguiente requiere montos, también se avisa a
+    // todos los administradores (además de quien esté a cargo del
+    // checklist normal), porque ellos tienen su propia parte ahí.
+    if (siguienteEtapa.requiere_montos) {
+      const { data: administradores } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("rol_id", "administrador")
+        .eq("activo", true);
+      const idsAdmin = (administradores ?? []).map((a: any) => a.id);
+      personasParaNotificar = Array.from(new Set([...personasParaNotificar, ...idsAdmin]));
+      if (personasParaNotificar.length === 0 && siguienteResponsableId) {
+        personasParaNotificar = [siguienteResponsableId];
+      }
+    }
   }
 
   // Actualización con "seguro": solo avanza si la etapa actual del
-  // proyecto sigue siendo exactamente la que esperábamos. Si otra
-  // persona ya la completó una fracción de segundo antes, esta
-  // condición no encuentra ninguna fila para actualizar, y se corta
-  // acá — sin generar historial ni notificaciones duplicadas.
+  // proyecto sigue siendo exactamente la que esperábamos.
   const { data: filasActualizadas } = await supabase
     .from("proyectos")
     .update({
@@ -261,9 +257,6 @@ Deno.serve(async (req: Request) => {
     tiempo_ejecucion_ms: Date.now() - startedAt,
   });
 
-  // Si la etapa recién completada era de Administrador o de 3
-  // personas, se borran las notificaciones pendientes de ESTE
-  // proyecto para el resto del grupo (ya no aplica, se completó).
   if (etapaActual.rol_id === "administrador" || etapaActual.multi_responsable) {
     await supabase.from("notificaciones").delete().eq("proyecto_id", proyecto_id).eq("leida", false);
   }
@@ -292,6 +285,13 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const idsAResolver = [usuario_id, siguienteResponsableId].filter(Boolean) as string[];
+  const { data: usuariosParaSheet } = await supabase
+    .from("usuarios")
+    .select("id, nombre")
+    .in("id", idsAResolver);
+  const nombrePorId = new Map((usuariosParaSheet ?? []).map((u: any) => [u.id, u.nombre]));
+
   fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-sheets`, {
     method: "POST",
     headers: {
@@ -300,12 +300,12 @@ Deno.serve(async (req: Request) => {
     },
     body: JSON.stringify({
       fecha: new Date().toISOString(),
-      proyecto: proyecto.nombre,
-      cliente: proyecto.cliente_id,
+      proyecto: proyecto.codigo_proyecto ?? proyecto.nombre,
+      agricultor: proyecto.nombre_agricultor ?? "—",
       etapa_completada: etapaActual.nombre,
       etapa_nueva: esUltimaEtapa ? null : siguienteEtapa.nombre,
-      responsable_anterior: usuario_id,
-      responsable_nuevo: siguienteResponsableId,
+      responsable_anterior: nombrePorId.get(usuario_id) ?? usuario_id,
+      responsable_nuevo: siguienteResponsableId ? nombrePorId.get(siguienteResponsableId) ?? siguienteResponsableId : null,
       finalizado: esUltimaEtapa,
     }),
   }).catch((err) => console.error("No se pudo notificar a google-sheets", err));

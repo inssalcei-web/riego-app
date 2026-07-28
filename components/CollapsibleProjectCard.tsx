@@ -1,20 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ProyectoConDetalle, MOTIVOS_CIERRE } from "@/lib/types";
 import { DetalleProyectoModal } from "@/components/DetalleProyectoModal";
 
 export function CollapsibleProjectCard({
   proyecto,
-  rolUsuario,
+  modo = "panel",
+  rolUsuario = null,
+  usuarioId = null,
 }: {
   proyecto: ProyectoConDetalle;
-  rolUsuario: string | null;
+  modo?: "panel" | "mis-tareas";
+  rolUsuario?: string | null;
+  usuarioId?: string | null;
 }) {
   const [abierta, setAbierta] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  const puedeVerDetalle = rolUsuario === "gerente_general" || rolUsuario === "administrador";
+  // En el panel general, solo Gerente general y Administrador pueden
+  // ver el detalle (en una ventana de solo lectura). En "Mis tareas"
+  // siempre se puede entrar, porque ya es una tarea propia.
+  const puedeVerDetalle =
+    modo === "mis-tareas" || rolUsuario === "gerente_general" || rolUsuario === "administrador";
 
   const cerradoAnticipado = proyecto.finalizado && proyecto.motivo_cierre;
 
@@ -61,7 +70,6 @@ export function CollapsibleProjectCard({
           </span>
         </span>
         <span
-          className="text-secondary shrink-0"
           style={{
             color: "var(--text-secondary)",
             transform: abierta ? "rotate(180deg)" : "none",
@@ -99,12 +107,13 @@ export function CollapsibleProjectCard({
             {proyecto.responsable_nombre}
           </p>
 
-          {/* Solo Gerente general y Administrador pueden ver el detalle
-              completo — y lo ven en una ventana de solo lectura, para
-              no "empujar" la etapa de otra persona a su bandeja de
-              Mis tareas sin querer. El resto de los roles no ve este
-              link en absoluto. */}
-          {puedeVerDetalle && !proyecto.finalizado && (
+          {puedeVerDetalle && !proyecto.finalizado && modo === "mis-tareas" && (
+            <Link href={`/mis-tareas/${proyecto.id}`} className="text-sm font-medium" style={{ color: "#3B82F6" }}>
+              Ir a la tarea →
+            </Link>
+          )}
+
+          {puedeVerDetalle && modo === "panel" && (
             <button
               onClick={() => setModalAbierto(true)}
               className="text-sm font-medium"
@@ -121,6 +130,9 @@ export function CollapsibleProjectCard({
           proyectoId={proyecto.id}
           codigoProyecto={proyecto.codigo_proyecto ?? "Sin código"}
           etapaOrdenActual={proyecto.etapa_orden}
+          finalizado={proyecto.finalizado}
+          usuarioId={usuarioId}
+          rolUsuario={rolUsuario}
           onClose={() => setModalAbierto(false)}
         />
       )}

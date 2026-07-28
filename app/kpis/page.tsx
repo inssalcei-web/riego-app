@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, obtenerUsuarioActual, obtenerFasesOrdenadas } from "@/lib/data/proyectos";
+import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, obtenerFasesOrdenadas } from "@/lib/data/proyectos";
 import { NavBar } from "@/components/NavBar";
 
 export const dynamic = "force-dynamic";
@@ -9,12 +9,23 @@ function formatoMoneda(valor: number) {
   return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(valor);
 }
 
-// Convierte texto libre (puede tener puntos, comas, "$", espacios) a número.
 function aNumero(valor: unknown): number | null {
   if (valor === null || valor === undefined) return null;
   const limpio = String(valor).replace(/[^\d.-]/g, "");
   const n = parseFloat(limpio);
   return isNaN(n) ? null : n;
+}
+
+function Tarjeta({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+      {children}
+    </div>
+  );
+}
+
+function TituloSeccion({ children }: { children: React.ReactNode }) {
+  return <p className="text-base font-semibold mb-3 pb-1 border-b" style={{ borderColor: "var(--border-default)" }}>{children}</p>;
 }
 
 export default async function KpisPage() {
@@ -32,6 +43,7 @@ export default async function KpisPage() {
 
   const [
     proyectosActivos,
+    proyectosTerminados,
     fases,
     { data: todosProyectos },
     { data: duracionEtapas },
@@ -39,6 +51,7 @@ export default async function KpisPage() {
     { data: documentosSolicitados },
   ] = await Promise.all([
     obtenerProyectosActivos(supabase),
+    obtenerProyectosTerminados(supabase),
     obtenerFasesOrdenadas(supabase),
     supabase.from("proyectos").select("*"),
     supabase.from("v_kpi_duracion_etapas").select("*"),
@@ -94,7 +107,7 @@ export default async function KpisPage() {
     cargaPorPersona.set(p.responsable_nombre, (cargaPorPersona.get(p.responsable_nombre) ?? 0) + 1);
   });
 
-  // ---------- 8, 9, 10, 11: datos del formulario de ingreso ----------
+  // ---------- 8, 9, 10: datos del formulario de ingreso ----------
   const conFormulario = (todosProyectos ?? []).filter((p: any) => {
     const tipo = p.datos_formulario?.tipo_proyecto;
     return Array.isArray(tipo) ? tipo.length > 0 : !!tipo;
@@ -113,11 +126,6 @@ export default async function KpisPage() {
     return Array.from(grupos.entries()).map(([clave, v]) => ({ clave, ...v }));
   }
 
-  // "Tipo de proyecto" ahora es de selección múltiple: un proyecto
-  // con 2 tipos marcados cuenta una vez en cada uno. No se muestra
-  // monto acá a propósito, porque el monto es uno solo por proyecto
-  // y sumarlo por tipo duplicaría el total (un mismo proyecto puede
-  // aparecer en más de un tipo).
   function agruparPorTipoMultiple() {
     const grupos = new Map<string, number>();
     conFormulario.forEach((p: any) => {
@@ -155,64 +163,65 @@ export default async function KpisPage() {
     .slice(0, 10);
 
   const total = proyectosActivos.length;
-  const maxPorFase = Math.max(1, ...fases.map((f: any) => proyectosActivos.filter((p) => p.fase_id === f.id).length));
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-3xl mx-auto space-y-8">
-        {/* Resumen general */}
+        {/* Mejora 7: cantidad de proyectos por fase, bien visible arriba */}
         <section>
-          <div className="mb-4">
-            <div className="rounded-lg p-3 inline-block" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-              <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>Proyectos activos</p>
-              <p className="text-xl font-medium">{total}</p>
-            </div>
-          </div>
-
-          <p className="text-sm font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>6 · Proyectos por fase</p>
-          <div className="flex items-end gap-3 h-24 mb-2">
+          <TituloSeccion>Proyectos por fase</TituloSeccion>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
             {fases.map((fase: any) => {
               const cantidad = proyectosActivos.filter((p) => p.fase_id === fase.id).length;
               return (
-                <div key={fase.id} className="flex flex-col items-center gap-1.5 flex-1">
-                  <div className="w-full rounded-t" style={{ height: `${Math.max((cantidad / maxPorFase) * 100, 4)}%`, background: "#3B82F6" }} />
-                  <span className="text-sm text-center" style={{ color: "var(--text-secondary)" }}>{fase.nombre.split(" ")[0]}</span>
-                </div>
+                <Tarjeta key={fase.id}>
+                  <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>{fase.nombre}</p>
+                  <p className="text-xl font-medium">{cantidad}</p>
+                </Tarjeta>
               );
             })}
+            <Tarjeta>
+              <p className="text-sm mb-1" style={{ color: "var(--status-on-track-text)" }}>✓ Terminados</p>
+              <p className="text-xl font-medium" style={{ color: "var(--status-on-track-text)" }}>{proyectosTerminados.length}</p>
+            </Tarjeta>
           </div>
+          <p className="text-sm mt-2" style={{ color: "var(--text-secondary)" }}>
+            Total de proyectos activos: {total}
+          </p>
         </section>
 
         {/* Tiempos */}
         <section>
-          <p className="text-base font-medium mb-3">Tiempos</p>
+          <TituloSeccion>Tiempos</TituloSeccion>
 
           <div className="grid grid-cols-2 gap-2.5 mb-4">
-            <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-              <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>2 · Duración promedio de un proyecto</p>
-              <p className="text-xl font-medium">{promedioDiasProyecto ? `${promedioDiasProyecto.toFixed(1)} días` : "Sin datos"}</p>
-            </div>
-            <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-              <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>3 · Etapa más lenta</p>
-              <p className="text-xl font-medium">{etapaMasLenta ? etapaMasLenta.nombre : "Sin datos"}</p>
-              {etapaMasLenta && <p className="text-base" style={{ color: "var(--text-secondary)" }}>{etapaMasLenta.promedio.toFixed(1)} h promedio</p>}
-            </div>
+            <Tarjeta>
+              <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>2 · Duración promedio de un proyecto</p>
+              <p className="text-lg font-medium">{promedioDiasProyecto ? `${promedioDiasProyecto.toFixed(1)} días` : "Sin datos"}</p>
+            </Tarjeta>
+            <Tarjeta>
+              <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>3 · Etapa más lenta</p>
+              <p className="text-lg font-medium">{etapaMasLenta ? etapaMasLenta.nombre : "Sin datos"}</p>
+              {etapaMasLenta && <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{etapaMasLenta.promedio.toFixed(1)} h promedio</p>}
+            </Tarjeta>
           </div>
 
           <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>1 · Tiempo promedio por etapa</p>
-          <div className="rounded-lg p-3 mb-4 max-h-60 overflow-y-auto" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            {promediosPorEtapa.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Todavía no hay etapas completadas.</p>}
-            {promediosPorEtapa.map((e) => (
-              <div key={e.nombre} className="flex justify-between text-sm py-1">
-                <span>{e.orden} · {e.nombre}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{e.promedio.toFixed(1)} h ({e.n})</span>
-              </div>
-            ))}
-          </div>
+          <Tarjeta>
+            <div className="max-h-60 overflow-y-auto">
+              {promediosPorEtapa.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Todavía no hay etapas completadas.</p>}
+              {promediosPorEtapa.map((e) => (
+                <div key={e.nombre} className="flex justify-between text-sm py-1">
+                  <span>{e.orden} · {e.nombre}</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{e.promedio.toFixed(1)} h ({e.n})</span>
+                </div>
+              ))}
+            </div>
+          </Tarjeta>
 
-          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>4 · Tiempo promedio de respuesta por persona</p>
-          <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+          <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>4 · Tiempo promedio de respuesta por persona</p>
+          <Tarjeta>
             {promedioPorPersona.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {promedioPorPersona.map((p) => (
               <div key={p.nombre} className="flex justify-between text-sm py-1">
@@ -220,15 +229,15 @@ export default async function KpisPage() {
                 <span style={{ color: "var(--text-secondary)" }}>{p.promedio.toFixed(1)} h promedio ({p.n} etapas)</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
         </section>
 
         {/* Volumen */}
         <section>
-          <p className="text-base font-medium mb-3">Volumen y avance</p>
+          <TituloSeccion>Volumen y avance</TituloSeccion>
 
           <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>5 · Proyectos completados por semestre</p>
-          <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+          <Tarjeta>
             {completadosPorSemestre.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Todavía ningún proyecto se completó.</p>}
             {completadosPorSemestre.map(([semestre, cantidad]) => (
               <div key={semestre} className="flex justify-between text-sm py-1">
@@ -236,36 +245,36 @@ export default async function KpisPage() {
                 <span style={{ color: "var(--text-secondary)" }}>{cantidad} proyecto(s)</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
 
-          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>7 · Carga actual por persona</p>
-          <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+          <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>7 · Carga actual por persona</p>
+          <Tarjeta>
             {Array.from(cargaPorPersona.entries()).map(([nombre, n]) => (
               <div key={nombre} className="flex justify-between text-sm py-1">
                 <span>{nombre}</span>
                 <span style={{ color: "var(--text-secondary)" }}>{n} proyecto(s)</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
         </section>
 
         {/* Formulario de ingreso */}
         <section>
-          <p className="text-base font-medium mb-3">Datos del formulario de ingreso</p>
+          <TituloSeccion>Datos del formulario de ingreso</TituloSeccion>
 
-          <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
-            <p className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>10 · Monto total gestionado</p>
-            <p className="text-xl font-medium mb-2">{formatoMoneda(montoTotalGestionado)}</p>
+          <Tarjeta>
+            <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>10 · Monto total gestionado</p>
+            <p className="text-lg font-medium mb-2">{formatoMoneda(montoTotalGestionado)}</p>
             {Array.from(montoPorSemestre.entries()).sort().map(([semestre, monto]) => (
               <div key={semestre} className="flex justify-between text-sm py-0.5">
                 <span style={{ color: "var(--text-secondary)" }}>{semestre}</span>
                 <span>{formatoMoneda(monto)}</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
 
-          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>8 · Proyectos por tipo</p>
-          <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+          <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>8 · Proyectos por tipo</p>
+          <Tarjeta>
             {porTipo.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {porTipo.map((g) => (
               <div key={g.clave} className="flex justify-between text-sm py-1">
@@ -273,10 +282,10 @@ export default async function KpisPage() {
                 <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} proyecto(s)</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
 
-          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>9 · Proyectos por fuente de financiamiento</p>
-          <div className="rounded-lg p-3 mb-4" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+          <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>9 · Proyectos por fuente de financiamiento</p>
+          <Tarjeta>
             {porFinanciamiento.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {porFinanciamiento.map((g) => (
               <div key={g.clave} className="flex justify-between text-sm py-1">
@@ -284,14 +293,14 @@ export default async function KpisPage() {
                 <span style={{ color: "var(--text-secondary)" }}>{g.cantidad} · {formatoMoneda(g.monto)}</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
         </section>
 
         {/* Documentos legales */}
         <section>
-          <p className="text-base font-medium mb-3">Documentos legales</p>
+          <TituloSeccion>Documentos legales</TituloSeccion>
           <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>12 · Documentos más solicitados</p>
-          <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
+          <Tarjeta>
             {documentosOrdenados.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>}
             {documentosOrdenados.map((d) => (
               <div key={d.nombre} className="flex justify-between text-sm py-1">
@@ -299,7 +308,7 @@ export default async function KpisPage() {
                 <span style={{ color: "var(--text-secondary)" }}>{d.veces} proyecto(s)</span>
               </div>
             ))}
-          </div>
+          </Tarjeta>
         </section>
       </main>
     </div>

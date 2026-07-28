@@ -20,8 +20,7 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Se puede ignorar si se llama desde un Server Component
-            // sin posibilidad de escribir cookies (se refresca en el middleware).
+            // se puede ignorar si se llama desde un lugar sin permiso de escritura
           }
         },
       },

@@ -4,7 +4,8 @@ export async function cerrarProyectoAnticipado(
   supabase: SupabaseClient,
   proyectoId: string,
   usuarioId: string,
-  motivo: string
+  motivo: string,
+  fechaRetomar?: string | null
 ): Promise<{ ok: boolean; error?: string }> {
   const {
     data: { session },
@@ -16,7 +17,12 @@ export async function cerrarProyectoAnticipado(
       "Content-Type": "application/json",
       Authorization: `Bearer ${session?.access_token ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify({ proyecto_id: proyectoId, usuario_id: usuarioId, motivo }),
+    body: JSON.stringify({
+      proyecto_id: proyectoId,
+      usuario_id: usuarioId,
+      motivo,
+      fecha_retomar: fechaRetomar || null,
+    }),
   });
 
   let data: any = null;

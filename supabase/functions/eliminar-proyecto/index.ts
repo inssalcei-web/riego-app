@@ -1,10 +1,5 @@
 // ============================================================
 // Edge Function: eliminar-proyecto
-//
-// Borra un proyecto por completo, incluyendo todo su rastro en
-// checklist, documentos legales, timeline, auditoría y
-// notificaciones — así los proyectos borrados no quedan afectando
-// ningún cálculo de KPIs. Solo Gerente general o Administrador.
 // ============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -47,8 +42,6 @@ Deno.serve(async (req: Request) => {
     return jsonError("Proyecto no encontrado", 404);
   }
 
-  // Se borra todo el rastro del proyecto, en orden, antes del
-  // proyecto mismo, para no dejar nada suelto que afecte los KPIs.
   await supabase.from("checklist_instancia").delete().eq("proyecto_id", proyecto_id);
   await supabase.from("proyecto_documentos_legales").delete().eq("proyecto_id", proyecto_id);
   await supabase.from("proyecto_responsables").delete().eq("proyecto_id", proyecto_id);

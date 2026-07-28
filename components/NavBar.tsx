@@ -66,16 +66,13 @@ export function NavBar() {
 
       {nombreUsuario && (
         <p
-          className="text-base px-4 -mt-1 mb-1 sm:hidden"
+          className="text-sm px-4 -mt-1 mb-1 sm:hidden"
           style={{ color: "var(--text-secondary)" }}
         >
           Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
         </p>
       )}
 
-      {/* Las pestañas van en su propia fila, con scroll horizontal si
-          no entran en pantallas angostas (celular) — así nunca se
-          cortan ni obligan a hacer zoom out. */}
       <nav
         className="flex gap-1 px-3 sm:px-4 pb-2 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}

@@ -1,15 +1,11 @@
 // ============================================================
 // Módulo 16 — Integración Google Sheets
-//
-// Recibe el movimiento desde complete-stage y lo agrega como
-// fila nueva en la planilla. Si falla, no rompe nada más — solo
-// queda registrado en los logs de esta función.
 // ============================================================
 
 interface MovimientoSheet {
   fecha: string;
   proyecto: string;
-  cliente: string;
+  agricultor: string;
   etapa_completada: string;
   etapa_nueva: string | null;
   responsable_anterior: string;
@@ -20,7 +16,17 @@ interface MovimientoSheet {
 const SHEET_ID = Deno.env.get("GOOGLE_SHEET_ID")!;
 const SHEET_RANGE = "Movimientos!A:H";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const mov: MovimientoSheet = await req.json();
     const accessToken = await obtenerTokenGoogle();
@@ -28,7 +34,7 @@ Deno.serve(async (req: Request) => {
     const fila = [
       mov.fecha,
       mov.proyecto,
-      mov.cliente,
+      mov.agricultor,
       mov.etapa_completada,
       mov.etapa_nueva ?? "—",
       mov.responsable_anterior,
@@ -50,19 +56,19 @@ Deno.serve(async (req: Request) => {
 
     if (!res.ok) {
       console.error("Error de Google Sheets:", await res.text());
-      return new Response(JSON.stringify({ ok: false }), { status: 502 });
+      return new Response(JSON.stringify({ ok: false }), { status: 502, headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders });
   } catch (err) {
     console.error("Error en integración google-sheets:", err);
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
       status: 500,
+      headers: corsHeaders,
     });
   }
 });
 
-// Autenticación con la cuenta de servicio (JWT firmado con la private key)
 async function obtenerTokenGoogle(): Promise<string> {
   const clientEmail = Deno.env.get("GOOGLE_CLIENT_EMAIL")!;
   const privateKey = Deno.env.get("GOOGLE_PRIVATE_KEY")!.replace(/\\n/g, "\n");

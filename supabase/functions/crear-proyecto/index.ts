@@ -1,10 +1,5 @@
 // ============================================================
 // Edge Function: crear-proyecto
-//
-// La usa el Gerente general desde la etapa 1. Crea el proyecto
-// directamente en la etapa 2 (Visita técnica) — el acto de
-// crearlo YA representa haber completado la etapa 1 ("Aviso de
-// nuevo proyecto"), así que no hace falta un checklist aparte.
 // ============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -102,6 +97,24 @@ Deno.serve(async (req: Request) => {
     estado_anterior: etapa1.nombre,
     estado_nuevo: etapa2.nombre,
   });
+
+  fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-sheets`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fecha: new Date().toISOString(),
+      proyecto: codigo_proyecto.trim(),
+      agricultor: nombre_agricultor.trim(),
+      etapa_completada: etapa1.nombre,
+      etapa_nueva: etapa2.nombre,
+      responsable_anterior: usuario.nombre,
+      responsable_nuevo: usuario.nombre,
+      finalizado: false,
+    }),
+  }).catch((err) => console.error("No se pudo notificar a google-sheets", err));
 
   return json({ ok: true, proyecto_id: proyecto.id });
 });

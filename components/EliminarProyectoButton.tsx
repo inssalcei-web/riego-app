@@ -9,10 +9,12 @@ export function EliminarProyectoButton({
   proyectoId,
   usuarioId,
   codigoProyecto,
+  onSuccess,
 }: {
   proyectoId: string;
   usuarioId: string;
   codigoProyecto: string;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -39,6 +41,7 @@ export function EliminarProyectoButton({
       return;
     }
 
+    onSuccess?.();
     router.push("/proyectos");
     router.refresh();
   }
@@ -63,7 +66,7 @@ export function EliminarProyectoButton({
       <p className="text-sm font-medium mb-1" style={{ color: "var(--status-overdue-text)" }}>
         Esto va a borrar el proyecto por completo
       </p>
-      <p className="text-base mb-2" style={{ color: "var(--status-overdue-text)" }}>
+      <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
         Se elimina todo su historial, checklist, documentos y datos de KPIs. No se puede deshacer.
         Para confirmar, escribe <strong>{textoEsperado}</strong> abajo.
       </p>

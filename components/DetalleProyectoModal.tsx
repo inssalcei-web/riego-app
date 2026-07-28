@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
+import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
 
 interface EtapaConResponsable {
   orden: number;
@@ -14,11 +16,17 @@ export function DetalleProyectoModal({
   proyectoId,
   codigoProyecto,
   etapaOrdenActual,
+  finalizado,
+  usuarioId,
+  rolUsuario,
   onClose,
 }: {
   proyectoId: string;
   codigoProyecto: string;
   etapaOrdenActual: number;
+  finalizado: boolean;
+  usuarioId: string | null;
+  rolUsuario: string | null;
   onClose: () => void;
 }) {
   const supabase = createClient();
@@ -60,6 +68,10 @@ export function DetalleProyectoModal({
           responsable = personaDelRol?.nombre ?? "—";
         }
 
+        if (e.requiere_montos) {
+          responsable += " + Administrador (montos)";
+        }
+
         return {
           orden: e.orden,
           nombre: e.nombre,
@@ -73,6 +85,8 @@ export function DetalleProyectoModal({
     })();
   }, [etapaOrdenActual]);
 
+  const puedeGestionar = rolUsuario === "gerente_general" || rolUsuario === "administrador";
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4 z-50"
@@ -80,7 +94,7 @@ export function DetalleProyectoModal({
       onClick={onClose}
     >
       <div
-        className="rounded-xl border max-w-md w-full max-h-[80vh] overflow-y-auto p-4"
+        className="rounded-xl border max-w-md w-full max-h-[85vh] overflow-y-auto p-4"
         style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -119,6 +133,24 @@ export function DetalleProyectoModal({
             </div>
           ))}
         </div>
+
+        {/* Gerente general y Administrador pueden cerrar o eliminar el
+            proyecto desde acá mismo, sin importar de quién sea la
+            etapa actual — antes solo se podía si el proyecto ya era
+            una tarea propia. */}
+        {puedeGestionar && usuarioId && (
+          <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border-default)" }}>
+            {!finalizado && rolUsuario === "gerente_general" && (
+              <CerrarProyectoButton proyectoId={proyectoId} usuarioId={usuarioId} onSuccess={onClose} />
+            )}
+            <EliminarProyectoButton
+              proyectoId={proyectoId}
+              usuarioId={usuarioId}
+              codigoProyecto={codigoProyecto}
+              onSuccess={onClose}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

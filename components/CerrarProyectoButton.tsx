@@ -9,15 +9,18 @@ import { MOTIVOS_CIERRE } from "@/lib/types";
 export function CerrarProyectoButton({
   proyectoId,
   usuarioId,
+  onSuccess,
 }: {
   proyectoId: string;
   usuarioId: string;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const supabase = createClient();
 
   const [abierto, setAbierto] = useState(false);
   const [motivo, setMotivo] = useState("");
+  const [fechaRetomar, setFechaRetomar] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +32,7 @@ export function CerrarProyectoButton({
     setEnviando(true);
     setError(null);
 
-    const resultado = await cerrarProyectoAnticipado(supabase, proyectoId, usuarioId, motivo);
+    const resultado = await cerrarProyectoAnticipado(supabase, proyectoId, usuarioId, motivo, fechaRetomar || null);
 
     setEnviando(false);
 
@@ -38,6 +41,7 @@ export function CerrarProyectoButton({
       return;
     }
 
+    onSuccess?.();
     router.push("/proyectos");
     router.refresh();
   }
@@ -76,6 +80,21 @@ export function CerrarProyectoButton({
           </option>
         ))}
       </select>
+
+      <label className="text-sm block mb-1" style={{ color: "var(--status-overdue-text)" }}>
+        Fecha para retomar (opcional)
+      </label>
+      <input
+        type="date"
+        value={fechaRetomar}
+        onChange={(e) => setFechaRetomar(e.target.value)}
+        className="w-full h-9 px-2 mb-2 rounded-md border text-base"
+        style={{ borderColor: "var(--border-default)" }}
+      />
+      <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
+        Si la completas, al Gerente general le va a llegar un aviso apenas entre a la
+        aplicación en o después de esa fecha.
+      </p>
 
       {error && (
         <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>

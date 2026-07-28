@@ -91,7 +91,7 @@ export function DocumentosLegalesPanel({
           <button
             key={doc.id}
             onClick={() => agregarDocumento(doc)}
-            className="flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-lg"
+            className="flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-base"
             style={{ background: "var(--surface-page)" }}
           >
             <span>{doc.nombre}</span>
@@ -134,7 +134,7 @@ export function DocumentosLegalesPanel({
               {item.completado ? "✓" : ""}
             </button>
             <span
-              className="text-lg flex-1"
+              className="text-base flex-1"
               style={{
                 textDecoration: item.completado ? "line-through" : "none",
                 color: item.completado ? "var(--text-secondary)" : "var(--text-primary)",
@@ -144,7 +144,7 @@ export function DocumentosLegalesPanel({
             </span>
             <button
               onClick={() => quitarDocumento(item.id)}
-              className="text-base"
+              className="text-sm"
               style={{ color: "var(--status-overdue-text)" }}
             >
               Quitar
