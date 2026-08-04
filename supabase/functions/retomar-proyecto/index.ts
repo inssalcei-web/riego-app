@@ -88,7 +88,11 @@ Deno.serve(async (req: Request) => {
       fecha_retomar: null,
       aviso_retomar_enviado: false,
       etapa_actual_id: etapa2.id,
+      etapa_actual_desde: new Date().toISOString(),
       responsable_actual_id: usuario_id,
+      archivado_manual: false,
+      archivado_motivo: null,
+      archivado_en: null,
     })
     .eq("id", proyecto_id);
 

@@ -64,6 +64,33 @@
   --status-overdue-bg: var(--color-red-100);
   --status-overdue-text: var(--color-red-700);
   --status-overdue-fill: var(--color-red-500);
+
+  /* Colores por fase del proyecto (1 a 4) — reemplazan cualquier
+     idea de "urgencia por tiempo", solo indican en qué parte del
+     camino va el proyecto. */
+  --fase1-bg: #ECFEFF;
+  --fase1-border: #A5F3FC;
+  --fase1-text: #0E7490;
+  --fase1-track: #CFFAFE;
+  --fase1-fill: #06B6D4;
+
+  --fase2-bg: #EFF6FF;
+  --fase2-border: #BFDBFE;
+  --fase2-text: #1D4ED8;
+  --fase2-track: #DBEAFE;
+  --fase2-fill: #3B82F6;
+
+  --fase3-bg: #FFF7ED;
+  --fase3-border: #FED7AA;
+  --fase3-text: #C2410C;
+  --fase3-track: #FFEDD5;
+  --fase3-fill: #F97316;
+
+  --fase4-bg: #F0FDF4;
+  --fase4-border: #BBF7D0;
+  --fase4-text: #15803D;
+  --fase4-track: #DCFCE7;
+  --fase4-fill: #22C55E;
 }
 
 [data-mode="dark"] {
@@ -87,4 +114,28 @@
 
   --status-overdue-bg: var(--color-red-900);
   --status-overdue-text: var(--color-red-300);
+
+  --fase1-bg: #083344;
+  --fase1-border: #155E75;
+  --fase1-text: #67E8F9;
+  --fase1-track: #0E7490;
+  --fase1-fill: #22D3EE;
+
+  --fase2-bg: #1E3A8A;
+  --fase2-border: #1D4ED8;
+  --fase2-text: #93C5FD;
+  --fase2-track: #1D4ED8;
+  --fase2-fill: #60A5FA;
+
+  --fase3-bg: #7C2D12;
+  --fase3-border: #C2410C;
+  --fase3-text: #FDBA74;
+  --fase3-track: #C2410C;
+  --fase3-fill: #FB923C;
+
+  --fase4-bg: #14532D;
+  --fase4-border: #15803D;
+  --fase4-text: #86EFAC;
+  --fase4-track: #15803D;
+  --fase4-fill: #4ADE80;
 }

@@ -1,9 +1,20 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosActivos, obtenerProyectosTerminados, obtenerUsuarioActual, obtenerFasesOrdenadas } from "@/lib/data/proyectos";
+import {
+  obtenerProyectosActivos,
+  obtenerProyectosTerminados,
+  obtenerProyectosArchivados,
+  obtenerUsuarioActual,
+  obtenerFasesOrdenadas,
+  obtenerCargaPorPersona,
+} from "@/lib/data/proyectos";
 import { NavBar } from "@/components/NavBar";
+import { GraficoDona } from "@/components/GraficoDona";
+import { GraficoBarrasHorizontal } from "@/components/GraficoBarrasHorizontal";
 
 export const dynamic = "force-dynamic";
+
+const COLORES_FASE = ["#06B6D4", "#3B82F6", "#F97316", "#22C55E"];
 
 function formatoMoneda(valor: number) {
   return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(valor);
@@ -44,33 +55,48 @@ export default async function KpisPage() {
   const [
     proyectosActivos,
     proyectosTerminados,
+    proyectosArchivados,
     fases,
+    cargaPorPersona,
     { data: todosProyectos },
-    { data: duracionEtapas },
+    { data: duracionesEtapa },
     { data: duracionProyectos },
     { data: documentosSolicitados },
   ] = await Promise.all([
     obtenerProyectosActivos(supabase),
     obtenerProyectosTerminados(supabase),
+    obtenerProyectosArchivados(supabase),
     obtenerFasesOrdenadas(supabase),
+    obtenerCargaPorPersona(supabase),
     supabase.from("proyectos").select("*"),
-    supabase.from("v_kpi_duracion_etapas").select("*"),
+    // Arreglo del Problema 1: se lee de la tabla dedicada
+    // duraciones_etapa (registrada en el momento real de cada
+    // movimiento), en vez de inferir el tiempo revisando el
+    // historial después. Se excluyen los "retroceso" para que un
+    // proyecto devuelto no infle el promedio de tiempo normal.
+    supabase
+      .from("duraciones_etapa")
+      .select("etapa_id, usuario_id, duracion_horas, etapas_definicion(nombre, orden), usuarios(nombre)")
+      .eq("tipo_movimiento", "avance"),
     supabase.from("v_kpi_duracion_proyectos").select("*"),
     supabase.from("proyecto_documentos_legales").select("documento_id, documentos_legales_catalogo(nombre)"),
   ]);
 
   // ---------- 1, 3: tiempo promedio por etapa + cuello de botella ----------
   const porEtapa = new Map<string, { nombre: string; orden: number; total: number; n: number }>();
-  (duracionEtapas ?? []).forEach((d: any) => {
-    const actual = porEtapa.get(d.etapa_nombre) ?? { nombre: d.etapa_nombre, orden: d.etapa_orden, total: 0, n: 0 };
+  (duracionesEtapa ?? []).forEach((d: any) => {
+    const nombre = d.etapas_definicion?.nombre ?? "—";
+    const orden = d.etapas_definicion?.orden ?? 0;
+    const actual = porEtapa.get(nombre) ?? { nombre, orden, total: 0, n: 0 };
     actual.total += d.duracion_horas;
     actual.n += 1;
-    porEtapa.set(d.etapa_nombre, actual);
+    porEtapa.set(nombre, actual);
   });
   const promediosPorEtapa = Array.from(porEtapa.values())
     .map((e) => ({ ...e, promedio: e.total / e.n }))
     .sort((a, b) => a.orden - b.orden);
   const etapaMasLenta = [...promediosPorEtapa].sort((a, b) => b.promedio - a.promedio)[0];
+  const top6Etapas = [...promediosPorEtapa].sort((a, b) => a.promedio - b.promedio).slice(-6);
 
   // ---------- 2: tiempo promedio total de proyecto ----------
   const proyectosCompletadosOk = (duracionProyectos ?? []).filter((p: any) => !p.motivo_cierre);
@@ -81,8 +107,8 @@ export default async function KpisPage() {
 
   // ---------- 4: tiempo promedio de respuesta por persona ----------
   const porPersona = new Map<string, { total: number; n: number }>();
-  (duracionEtapas ?? []).forEach((d: any) => {
-    const nombre = d.usuario_nombre ?? "Sin asignar";
+  (duracionesEtapa ?? []).forEach((d: any) => {
+    const nombre = d.usuarios?.nombre ?? "Sin asignar";
     const actual = porPersona.get(nombre) ?? { total: 0, n: 0 };
     actual.total += d.duracion_horas;
     actual.n += 1;
@@ -100,12 +126,6 @@ export default async function KpisPage() {
     porSemestre.set(clave, (porSemestre.get(clave) ?? 0) + 1);
   });
   const completadosPorSemestre = Array.from(porSemestre.entries()).sort();
-
-  // ---------- 7: carga actual por persona ----------
-  const cargaPorPersona = new Map<string, number>();
-  proyectosActivos.forEach((p) => {
-    cargaPorPersona.set(p.responsable_nombre, (cargaPorPersona.get(p.responsable_nombre) ?? 0) + 1);
-  });
 
   // ---------- 8, 9, 10: datos del formulario de ingreso ----------
   const conFormulario = (todosProyectos ?? []).filter((p: any) => {
@@ -163,15 +183,16 @@ export default async function KpisPage() {
     .slice(0, 10);
 
   const total = proyectosActivos.length;
+  const cargaOrdenada = Array.from(cargaPorPersona.entries()).sort((a, b) => a[1] - b[1]);
 
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-3xl mx-auto space-y-8">
-        {/* Mejora 7: cantidad de proyectos por fase, bien visible arriba */}
+        {/* Proyectos por fase — tarjetas + gráfico de dona */}
         <section>
           <TituloSeccion>Proyectos por fase</TituloSeccion>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-4">
             {fases.map((fase: any) => {
               const cantidad = proyectosActivos.filter((p) => p.fase_id === fase.id).length;
               return (
@@ -185,7 +206,21 @@ export default async function KpisPage() {
               <p className="text-sm mb-1" style={{ color: "var(--status-on-track-text)" }}>✓ Terminados</p>
               <p className="text-xl font-medium" style={{ color: "var(--status-on-track-text)" }}>{proyectosTerminados.length}</p>
             </Tarjeta>
+            <Tarjeta>
+              <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>📥 Archivados</p>
+              <p className="text-xl font-medium">{proyectosArchivados.length}</p>
+            </Tarjeta>
           </div>
+
+          {total > 0 && (
+            <Tarjeta>
+              <GraficoDona
+                labels={fases.map((f: any) => f.nombre)}
+                valores={fases.map((f: any) => proyectosActivos.filter((p) => p.fase_id === f.id).length)}
+                colores={COLORES_FASE}
+              />
+            </Tarjeta>
+          )}
           <p className="text-sm mt-2" style={{ color: "var(--text-secondary)" }}>
             Total de proyectos activos: {total}
           </p>
@@ -207,18 +242,28 @@ export default async function KpisPage() {
             </Tarjeta>
           </div>
 
-          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>1 · Tiempo promedio por etapa</p>
+          <p className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>
+            1 · Tiempo promedio por etapa (horas) — cuellos de botella
+          </p>
           <Tarjeta>
-            <div className="max-h-60 overflow-y-auto">
-              {promediosPorEtapa.length === 0 && <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Todavía no hay etapas completadas.</p>}
-              {promediosPorEtapa.map((e) => (
-                <div key={e.nombre} className="flex justify-between text-sm py-1">
-                  <span>{e.orden} · {e.nombre}</span>
-                  <span style={{ color: "var(--text-secondary)" }}>{e.promedio.toFixed(1)} h ({e.n})</span>
-                </div>
-              ))}
-            </div>
+            {top6Etapas.length === 0 ? (
+              <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
+                Todavía no hay etapas completadas con el nuevo registro de tiempos.
+              </p>
+            ) : (
+              <GraficoBarrasHorizontal
+                labels={top6Etapas.map((e) => e.nombre)}
+                valores={top6Etapas.map((e) => Math.round(e.promedio * 10) / 10)}
+                color="#F97316"
+                sufijo=" h"
+              />
+            )}
           </Tarjeta>
+          <p className="text-sm mt-1.5" style={{ color: "var(--text-secondary)" }}>
+            Se muestran las 6 etapas más lentas en promedio, de mayor a menor. Este cálculo solo
+            considera avances reales — si un proyecto fue devuelto a una etapa anterior, ese tramo
+            no cuenta acá, para no inflar el promedio.
+          </p>
 
           <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>4 · Tiempo promedio de respuesta por persona</p>
           <Tarjeta>
@@ -249,13 +294,21 @@ export default async function KpisPage() {
 
           <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>7 · Carga actual por persona</p>
           <Tarjeta>
-            {Array.from(cargaPorPersona.entries()).map(([nombre, n]) => (
-              <div key={nombre} className="flex justify-between text-sm py-1">
-                <span>{nombre}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{n} proyecto(s)</span>
-              </div>
-            ))}
+            {cargaOrdenada.length === 0 ? (
+              <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>Sin datos todavía.</p>
+            ) : (
+              <GraficoBarrasHorizontal
+                labels={cargaOrdenada.map(([nombre]) => nombre)}
+                valores={cargaOrdenada.map(([, n]) => n)}
+                color="#3B82F6"
+                sufijo=" proyecto(s)"
+              />
+            )}
           </Tarjeta>
+          <p className="text-sm mt-1.5" style={{ color: "var(--text-secondary)" }}>
+            Cuenta a cada persona por separado, incluyendo su participación en etapas de varios
+            responsables (9, 15, 16) — no agrupa por el texto combinado que se ve en la tarjeta.
+          </p>
         </section>
 
         {/* Formulario de ingreso */}
@@ -264,7 +317,11 @@ export default async function KpisPage() {
 
           <Tarjeta>
             <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>10 · Monto total gestionado</p>
-            <p className="text-lg font-medium mb-2">{formatoMoneda(montoTotalGestionado)}</p>
+            <p className="text-lg font-medium mb-1">{formatoMoneda(montoTotalGestionado)}</p>
+            <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+              Solo cuenta proyectos que ya llegaron a la etapa 15 (Postulación) y tienen sus montos
+              cargados — un proyecto en una etapa anterior todavía no aporta a este total.
+            </p>
             {Array.from(montoPorSemestre.entries()).sort().map(([semestre, monto]) => (
               <div key={semestre} className="flex justify-between text-sm py-0.5">
                 <span style={{ color: "var(--text-secondary)" }}>{semestre}</span>

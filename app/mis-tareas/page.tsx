@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerMisProyectos } from "@/lib/data/proyectos";
 import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
+import { AvisoTareasCompletadas } from "@/components/AvisoTareasCompletadas";
 import { NavBar } from "@/components/NavBar";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +54,16 @@ export default async function MisTareasPage() {
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5 max-w-md mx-auto">
-        <p className="font-medium text-base mb-4">
-          Mis tareas <span style={{ color: "var(--text-secondary)" }}>({proyectos.length})</span>
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="font-medium text-base">
+            Mis tareas <span style={{ color: "var(--text-secondary)" }}>({proyectos.length})</span>
+          </p>
+          <Link href="/proyectos" className="text-sm font-medium" style={{ color: "#3B82F6" }}>
+            ← Volver al panel principal
+          </Link>
+        </div>
+
+        <AvisoTareasCompletadas quedanTareas={proyectos.length > 0} />
 
         {proyectos.length === 0 && (
           <p className="text-base" style={{ color: "var(--text-secondary)" }}>

@@ -86,6 +86,7 @@ export function FormularioIngresoPanel({
       return;
     }
 
+    sessionStorage.setItem("riego-app-etapa-completada", "1");
     router.push("/mis-tareas");
     router.refresh();
   }

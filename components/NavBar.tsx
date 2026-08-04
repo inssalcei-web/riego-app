@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const TABS = [
   { href: "/proyectos", label: "Proyectos activos" },
   { href: "/mis-tareas", label: "Mis tareas" },
+  { href: "/archivados", label: "Archivados" },
   { href: "/kpis", label: "KPIs e informes", soloRoles: ["gerente_general", "administrador"] },
 ];
 

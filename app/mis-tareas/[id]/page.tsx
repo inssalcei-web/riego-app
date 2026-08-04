@@ -65,6 +65,14 @@ export default async function DetalleProyectoPage({
             </p>
           )}
 
+          <a
+            href={`/api/proyectos/${id}/pdf`}
+            className="inline-block mb-4 text-sm font-medium"
+            style={{ color: "#3B82F6" }}
+          >
+            ⬇ Descargar PDF
+          </a>
+
           {!proyecto.finalizado && etapa?.mensaje_pendiente && (
             <p
               className="text-sm mb-4 px-3 py-2 rounded-lg"

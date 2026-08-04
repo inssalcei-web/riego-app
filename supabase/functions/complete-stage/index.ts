@@ -233,8 +233,12 @@ Deno.serve(async (req: Request) => {
     .from("proyectos")
     .update({
       etapa_actual_id: esUltimaEtapa ? etapaActual.id : siguienteEtapa.id,
+      etapa_actual_desde: new Date().toISOString(),
       responsable_actual_id: siguienteResponsableId ?? proyecto.responsable_actual_id,
       finalizado: esUltimaEtapa,
+      archivado_manual: false,
+      archivado_motivo: null,
+      archivado_en: null,
     })
     .eq("id", proyecto_id)
     .eq("etapa_actual_id", etapaActual.id)
@@ -246,6 +250,20 @@ Deno.serve(async (req: Request) => {
       409
     );
   }
+
+  // Se registra cuánto duró realmente la etapa que se acaba de
+  // completar, para que los KPIs de tiempo no tengan que "adivinar"
+  // esto revisando el historial más adelante.
+  const horasEnEtapa = (Date.now() - new Date(proyecto.etapa_actual_desde).getTime()) / (1000 * 60 * 60);
+  await supabase.from("duraciones_etapa").insert({
+    proyecto_id,
+    etapa_id: etapaActual.id,
+    usuario_id,
+    fecha_inicio: proyecto.etapa_actual_desde,
+    fecha_fin: new Date().toISOString(),
+    duracion_horas: Math.max(0, horasEnEtapa),
+    tipo_movimiento: "avance",
+  });
 
   await supabase.from("timeline_eventos").insert({
     proyecto_id,

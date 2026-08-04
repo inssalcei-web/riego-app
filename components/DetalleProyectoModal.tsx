@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
 import { RetrocederEtapaButton } from "@/components/RetrocederEtapaButton";
+import { ArchivarProyectoButton } from "@/components/ArchivarProyectoButton";
 
 interface EtapaConResponsable {
   orden: number;
@@ -18,6 +19,7 @@ export function DetalleProyectoModal({
   codigoProyecto,
   etapaOrdenActual,
   finalizado,
+  archivado,
   usuarioId,
   rolUsuario,
   onClose,
@@ -26,6 +28,7 @@ export function DetalleProyectoModal({
   codigoProyecto: string;
   etapaOrdenActual: number;
   finalizado: boolean;
+  archivado: boolean;
   usuarioId: string | null;
   rolUsuario: string | null;
   onClose: () => void;
@@ -135,6 +138,16 @@ export function DetalleProyectoModal({
           ))}
         </div>
 
+        {/* Descargar PDF: disponible para cualquier usuario, no solo
+            Administrador/Gerente general. */}
+        <a
+          href={`/api/proyectos/${proyectoId}/pdf`}
+          className="inline-block mt-3 text-sm font-medium"
+          style={{ color: "#3B82F6" }}
+        >
+          ⬇ Descargar PDF
+        </a>
+
         {/* Gerente general y Administrador pueden cerrar o eliminar el
             proyecto desde acá mismo, sin importar de quién sea la
             etapa actual — antes solo se podía si el proyecto ya era
@@ -146,6 +159,14 @@ export function DetalleProyectoModal({
                 proyectoId={proyectoId}
                 usuarioId={usuarioId}
                 etapaActualNombre={etapas.find((e) => e.esActual)?.nombre ?? ""}
+                onSuccess={onClose}
+              />
+            )}
+            {!finalizado && (
+              <ArchivarProyectoButton
+                proyectoId={proyectoId}
+                usuarioId={usuarioId}
+                yaArchivado={archivado}
                 onSuccess={onClose}
               />
             )}

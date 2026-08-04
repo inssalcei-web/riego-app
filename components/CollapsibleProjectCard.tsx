@@ -5,6 +5,14 @@ import Link from "next/link";
 import { ProyectoConDetalle, MOTIVOS_CIERRE } from "@/lib/types";
 import { DetalleProyectoModal } from "@/components/DetalleProyectoModal";
 
+const COLORES_FASE = [
+  null,
+  { bg: "var(--fase1-bg)", border: "var(--fase1-border)", text: "var(--fase1-text)", track: "var(--fase1-track)", fill: "var(--fase1-fill)" },
+  { bg: "var(--fase2-bg)", border: "var(--fase2-border)", text: "var(--fase2-text)", track: "var(--fase2-track)", fill: "var(--fase2-fill)" },
+  { bg: "var(--fase3-bg)", border: "var(--fase3-border)", text: "var(--fase3-text)", track: "var(--fase3-track)", fill: "var(--fase3-fill)" },
+  { bg: "var(--fase4-bg)", border: "var(--fase4-border)", text: "var(--fase4-text)", track: "var(--fase4-track)", fill: "var(--fase4-fill)" },
+];
+
 export function CollapsibleProjectCard({
   proyecto,
   modo = "panel",
@@ -19,21 +27,25 @@ export function CollapsibleProjectCard({
   const [abierta, setAbierta] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  // En el panel general, solo Gerente general y Administrador pueden
-  // ver el detalle (en una ventana de solo lectura). En "Mis tareas"
-  // siempre se puede entrar, porque ya es una tarea propia.
   const puedeVerDetalle =
     modo === "mis-tareas" || rolUsuario === "gerente_general" || rolUsuario === "administrador";
 
   const cerradoAnticipado = proyecto.finalizado && proyecto.motivo_cierre;
+  const colores = COLORES_FASE[proyecto.fase_orden] ?? COLORES_FASE[1]!;
 
-  const colorPunto = cerradoAnticipado
-    ? "var(--status-due-soon-fill)"
-    : proyecto.finalizado
-    ? "var(--status-on-track-fill)"
-    : proyecto.estado_cumplimiento === "atrasado"
+  // El color de fondo de la tarjeta representa la FASE del proyecto
+  // (dónde va en el camino). El puntito representa el SEMÁFORO por
+  // días en la etapa actual — son dos señales independientes.
+  const fondoTarjeta = proyecto.finalizado ? "var(--surface-card)" : colores.bg;
+  const bordeTarjeta = proyecto.finalizado ? "var(--border-default)" : colores.border;
+
+  const colorSemaforo = proyecto.finalizado
+    ? cerradoAnticipado
+      ? "var(--status-due-soon-fill)"
+      : "var(--status-on-track-fill)"
+    : proyecto.color_semaforo === "rojo"
     ? "var(--status-overdue-fill)"
-    : proyecto.estado_cumplimiento === "por_vencer"
+    : proyecto.color_semaforo === "amarillo"
     ? "var(--status-due-soon-fill)"
     : "var(--status-on-track-fill)";
 
@@ -41,23 +53,19 @@ export function CollapsibleProjectCard({
     ? `Cerrado anticipado · ${MOTIVOS_CIERRE[proyecto.motivo_cierre!] ?? proyecto.motivo_cierre}`
     : proyecto.finalizado
     ? "Completado"
-    : proyecto.estado_cumplimiento === "atrasado"
-    ? "Atrasado"
-    : proyecto.estado_cumplimiento === "por_vencer"
-    ? "Por vencer"
-    : "En plazo";
+    : null;
 
   return (
     <div
-      className="project-card rounded-xl border mb-2.5 overflow-hidden"
-      style={{ borderColor: "var(--border-default)", background: "var(--surface-card)" }}
+      className="rounded-xl border mb-2.5 overflow-hidden transition-all"
+      style={{ borderColor: bordeTarjeta, background: fondoTarjeta, boxShadow: "var(--shadow-card)" }}
     >
       <button
         onClick={() => setAbierta((v) => !v)}
         className="w-full flex items-center gap-2.5 p-3 text-left"
         aria-expanded={abierta}
       >
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colorPunto }} />
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorSemaforo }} />
         <span className="flex-1 min-w-0">
           <span className="font-medium text-base block truncate">
             {proyecto.codigo_proyecto ?? "Sin código"}
@@ -82,22 +90,27 @@ export function CollapsibleProjectCard({
 
       {abierta && (
         <div className="px-3 pb-3 -mt-1">
-          <span
-            className="inline-block text-sm px-2 py-0.5 rounded-full mb-2"
-            style={{ background: "var(--surface-page)", color: "var(--text-secondary)" }}
-          >
-            {etiquetaEstado}
-          </span>
+          {etiquetaEstado && (
+            <span
+              className="inline-block text-sm px-2 py-0.5 rounded-full mb-2"
+              style={{ background: "var(--surface-page)", color: "var(--text-secondary)" }}
+            >
+              {etiquetaEstado}
+            </span>
+          )}
 
           {!proyecto.finalizado && (
             <>
-              <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+              <p className="text-sm mb-1" style={{ color: colores.text }}>
                 {proyecto.etapa_nombre}
               </p>
-              <div className="h-1.5 rounded-full mb-2 overflow-hidden" style={{ background: "var(--border-default)" }}>
+              <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+                {proyecto.dias_en_etapa} día{proyecto.dias_en_etapa === 1 ? "" : "s"} en esta etapa
+              </p>
+              <div className="h-1.5 rounded-full mb-2 overflow-hidden" style={{ background: colores.track }}>
                 <div
                   className="h-full"
-                  style={{ width: `${proyecto.porcentaje_avance}%`, background: colorPunto }}
+                  style={{ width: `${proyecto.porcentaje_avance}%`, background: colores.fill }}
                 />
               </div>
             </>
@@ -131,6 +144,7 @@ export function CollapsibleProjectCard({
           codigoProyecto={proyecto.codigo_proyecto ?? "Sin código"}
           etapaOrdenActual={proyecto.etapa_orden}
           finalizado={proyecto.finalizado}
+          archivado={proyecto.archivado}
           usuarioId={usuarioId}
           rolUsuario={rolUsuario}
           onClose={() => setModalAbierto(false)}

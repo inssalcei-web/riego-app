@@ -63,6 +63,7 @@ Deno.serve(async (req: Request) => {
       nombre_agricultor: nombre_agricultor.trim(),
       nombre: codigo_proyecto.trim(),
       etapa_actual_id: etapa2.id,
+      etapa_actual_desde: new Date().toISOString(),
       responsable_actual_id: usuario_id,
       fecha_inicio: new Date().toISOString().slice(0, 10),
       finalizado: false,

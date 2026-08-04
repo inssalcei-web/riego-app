@@ -119,6 +119,19 @@ Deno.serve(async (req: Request) => {
     personasParaNotificar = Array.from(new Set([...personasParaNotificar, ...idsAdmin]));
   }
 
+  // Se registra este tramo como "retroceso", para que los KPIs de
+  // tiempo por etapa no lo mezclen con avances normales.
+  const horasEnEtapa = (Date.now() - new Date(proyecto.etapa_actual_desde).getTime()) / (1000 * 60 * 60);
+  await supabase.from("duraciones_etapa").insert({
+    proyecto_id,
+    etapa_id: etapaActual.id,
+    usuario_id,
+    fecha_inicio: proyecto.etapa_actual_desde,
+    fecha_fin: new Date().toISOString(),
+    duracion_horas: Math.max(0, horasEnEtapa),
+    tipo_movimiento: "retroceso",
+  });
+
   // Resetear el checklist de la etapa a la que se vuelve.
   const { data: itemsEtapaAnterior } = await supabase
     .from("checklist_items_definicion")
@@ -138,7 +151,11 @@ Deno.serve(async (req: Request) => {
     .from("proyectos")
     .update({
       etapa_actual_id: etapaAnterior.id,
+      etapa_actual_desde: new Date().toISOString(),
       responsable_actual_id: nuevoResponsableId ?? proyecto.responsable_actual_id,
+      archivado_manual: false,
+      archivado_motivo: null,
+      archivado_en: null,
     })
     .eq("id", proyecto_id);
 

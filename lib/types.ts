@@ -48,8 +48,6 @@ export interface Cliente {
   nombre: string;
 }
 
-export type EstadoCumplimiento = "en_plazo" | "por_vencer" | "atrasado";
-
 export interface Proyecto {
   id: string;
   nombre: string | null;
@@ -57,6 +55,7 @@ export interface Proyecto {
   nombre_agricultor: string;
   cliente_id: string | null;
   etapa_actual_id: number;
+  etapa_actual_desde: string;
   responsable_actual_id: string;
   fecha_inicio: string;
   fecha_objetivo: string | null;
@@ -64,6 +63,9 @@ export interface Proyecto {
   motivo_cierre: string | null;
   fecha_retomar: string | null;
   aviso_retomar_enviado: boolean;
+  archivado_manual: boolean;
+  archivado_motivo: string | null;
+  archivado_en: string | null;
   creado_en: string;
   datos_formulario: Record<string, any>;
 }
@@ -75,16 +77,21 @@ export const MOTIVOS_CIERRE: Record<string, string> = {
   cliente_desiste: "Cliente desiste",
 };
 
+export type ColorSemaforo = "verde" | "amarillo" | "rojo";
+
 export interface ProyectoConDetalle extends Proyecto {
   cliente_nombre: string;
   etapa_nombre: string;
   etapa_orden: number;
   fase_id: string;
   fase_nombre: string;
+  fase_orden: number;
   responsable_nombre: string;
   fuente_financiamiento: string | null;
   porcentaje_avance: number;
-  estado_cumplimiento: EstadoCumplimiento;
+  dias_en_etapa: number;
+  color_semaforo: ColorSemaforo;
+  archivado: boolean;
 }
 
 export interface ChecklistInstancia {
@@ -130,19 +137,4 @@ export interface ProyectoDocumentoLegal {
   proyecto_id: string;
   documento_id: number;
   completado: boolean;
-}
-
-export function calcularEstadoCumplimiento(
-  fechaObjetivo: string | null,
-  finalizado: boolean
-): EstadoCumplimiento {
-  if (finalizado || !fechaObjetivo) return "en_plazo";
-  const hoy = new Date();
-  const objetivo = new Date(fechaObjetivo);
-  const diasRestantes = Math.ceil(
-    (objetivo.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diasRestantes < 0) return "atrasado";
-  if (diasRestantes <= 5) return "por_vencer";
-  return "en_plazo";
 }
