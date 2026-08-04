@@ -17,12 +17,8 @@ export const dynamic = "force-dynamic";
 export default async function ProyectosPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
   const usuario = await obtenerUsuarioActual(supabase);
+  if (!usuario) redirect("/login");
 
   const [proyectosActivos, proyectosTerminados, fases, proyectosPendientesRetomar] = await Promise.all([
     obtenerProyectosActivos(supabase),

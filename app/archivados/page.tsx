@@ -9,12 +9,9 @@ export const dynamic = "force-dynamic";
 export default async function ArchivadosPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
   const usuario = await obtenerUsuarioActual(supabase);
+  if (!usuario) redirect("/login");
+
   const proyectos = await obtenerProyectosArchivados(supabase);
 
   return (

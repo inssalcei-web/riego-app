@@ -12,12 +12,12 @@ export default async function MisTareasPage() {
   const supabase = await createClient();
 
   const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
 
   if (!user) {
-    console.error("[mis-tareas] Sin usuario de sesión. Error de auth:", authError);
+    console.error("[mis-tareas] Sin usuario de sesión.");
     redirect("/login");
   }
 

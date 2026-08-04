@@ -21,11 +21,6 @@ export default async function DetalleProyectoPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
 

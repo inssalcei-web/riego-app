@@ -313,15 +313,20 @@ export async function obtenerMisProyectos(
 }
 
 export async function obtenerUsuarioActual(supabase: SupabaseClient) {
+  // Se usa getSession() en vez de getUser(): el middleware ya validó
+  // la sesión contra el servidor de Supabase para esta misma
+  // solicitud — volver a preguntarlo acá sería un segundo viaje a
+  // internet innecesario. getSession() solo lee la cookie ya
+  // confirmada, sin red de por medio.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) return null;
 
   const { data } = await supabase
     .from("usuarios")
     .select("*")
-    .eq("auth_user_id", user.id)
+    .eq("auth_user_id", session.user.id)
     .single();
 
   return data;

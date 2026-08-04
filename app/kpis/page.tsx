@@ -42,13 +42,9 @@ function TituloSeccion({ children }: { children: React.ReactNode }) {
 export default async function KpisPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
   const usuario = await obtenerUsuarioActual(supabase);
-  if (!usuario || !["gerente_general", "administrador"].includes(usuario.rol_id)) {
+  if (!usuario) redirect("/login");
+  if (!["gerente_general", "administrador"].includes(usuario.rol_id)) {
     redirect("/proyectos");
   }
 

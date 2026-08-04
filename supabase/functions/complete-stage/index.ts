@@ -63,21 +63,14 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const { data: etapaActual, error: errEtapa } = await supabase
-    .from("etapas_definicion")
-    .select("*")
-    .eq("id", proyecto.etapa_actual_id)
-    .single();
+  const [{ data: etapaActual, error: errEtapa }, { data: usuarioActuante }] = await Promise.all([
+    supabase.from("etapas_definicion").select("*").eq("id", proyecto.etapa_actual_id).single(),
+    supabase.from("usuarios").select("rol_id").eq("id", usuario_id).single(),
+  ]);
 
   if (errEtapa || !etapaActual) {
     return jsonError(`Etapa actual no encontrada — detalle: ${errEtapa?.message ?? "sin datos"}`, 404);
   }
-
-  const { data: usuarioActuante } = await supabase
-    .from("usuarios")
-    .select("rol_id")
-    .eq("id", usuario_id)
-    .single();
 
   let autorizado = false;
 
@@ -251,91 +244,107 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // Se registra cuánto duró realmente la etapa que se acaba de
-  // completar, para que los KPIs de tiempo no tengan que "adivinar"
-  // esto revisando el historial más adelante.
+  // Estas 4 escrituras no dependen entre sí, así que se disparan
+  // todas juntas en vez de esperar una detrás de la otra — esto es
+  // lo que más demoraba "Completar etapa" antes.
   const horasEnEtapa = (Date.now() - new Date(proyecto.etapa_actual_desde).getTime()) / (1000 * 60 * 60);
-  await supabase.from("duraciones_etapa").insert({
-    proyecto_id,
-    etapa_id: etapaActual.id,
-    usuario_id,
-    fecha_inicio: proyecto.etapa_actual_desde,
-    fecha_fin: new Date().toISOString(),
-    duracion_horas: Math.max(0, horasEnEtapa),
-    tipo_movimiento: "avance",
-  });
 
-  await supabase.from("timeline_eventos").insert({
-    proyecto_id,
-    tipo: "cambio_etapa",
-    descripcion: esUltimaEtapa
-      ? `Proyecto finalizado. Última etapa completada: ${etapaActual.nombre}`
-      : `Etapa "${etapaActual.nombre}" completada. Pasa a "${siguienteEtapa.nombre}"`,
-    usuario_id,
-  });
+  await Promise.all([
+    supabase.from("duraciones_etapa").insert({
+      proyecto_id,
+      etapa_id: etapaActual.id,
+      usuario_id,
+      fecha_inicio: proyecto.etapa_actual_desde,
+      fecha_fin: new Date().toISOString(),
+      duracion_horas: Math.max(0, horasEnEtapa),
+      tipo_movimiento: "avance",
+    }),
+    supabase.from("timeline_eventos").insert({
+      proyecto_id,
+      tipo: "cambio_etapa",
+      descripcion: esUltimaEtapa
+        ? `Proyecto finalizado. Última etapa completada: ${etapaActual.nombre}`
+        : `Etapa "${etapaActual.nombre}" completada. Pasa a "${siguienteEtapa.nombre}"`,
+      usuario_id,
+    }),
+    supabase.from("auditoria").insert({
+      usuario_id,
+      proyecto_id,
+      etapa_id: etapaActual.id,
+      accion: "completar_etapa",
+      estado_anterior: etapaActual.nombre,
+      estado_nuevo: esUltimaEtapa ? "finalizado" : siguienteEtapa.nombre,
+      tiempo_ejecucion_ms: Date.now() - startedAt,
+    }),
+    etapaActual.rol_id === "administrador" || etapaActual.multi_responsable || etapaActual.requiere_montos
+      ? supabase.from("notificaciones").delete().eq("proyecto_id", proyecto_id).eq("leida", false)
+      : Promise.resolve(null),
+  ]);
 
-  await supabase.from("auditoria").insert({
-    usuario_id,
-    proyecto_id,
-    etapa_id: etapaActual.id,
-    accion: "completar_etapa",
-    estado_anterior: etapaActual.nombre,
-    estado_nuevo: esUltimaEtapa ? "finalizado" : siguienteEtapa.nombre,
-    tiempo_ejecucion_ms: Date.now() - startedAt,
-  });
-
-  if (etapaActual.rol_id === "administrador" || etapaActual.multi_responsable || etapaActual.requiere_montos) {
-    await supabase.from("notificaciones").delete().eq("proyecto_id", proyecto_id).eq("leida", false);
-  }
-
-  if (personasParaNotificar.length > 0) {
-    const mensaje =
-      siguienteEtapa.mensaje_notificacion ??
-      `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
-
-    await supabase.from("notificaciones").insert(
-      personasParaNotificar.map((id) => ({
-        usuario_id: id,
+  // A partir de acá, nada de lo que falta afecta si la etapa quedó
+  // bien completada (eso ya se guardó arriba) — son "efectos
+  // secundarios" (avisar a la persona siguiente, dejar registro en
+  // Google Sheets). Se disparan en segundo plano, SIN esperar a que
+  // terminen, para que la persona que completó la etapa reciba la
+  // confirmación de inmediato en vez de esperar a Google Sheets.
+  const tareaSegundoPlano = (async () => {
+    if (personasParaNotificar.length > 0) {
+      const mensaje =
+        siguienteEtapa.mensaje_notificacion ??
+        `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
+      await supabase.from("notificaciones").insert(
+        personasParaNotificar.map((id) => ({
+          usuario_id: id,
+          proyecto_id,
+          mensaje: `${mensaje} — Proyecto: ${proyecto.nombre}`,
+        }))
+      );
+    } else if (siguienteResponsableId) {
+      const mensaje =
+        siguienteEtapa.mensaje_notificacion ??
+        `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
+      await supabase.from("notificaciones").insert({
+        usuario_id: siguienteResponsableId,
         proyecto_id,
         mensaje: `${mensaje} — Proyecto: ${proyecto.nombre}`,
-      }))
-    );
-  } else if (siguienteResponsableId) {
-    const mensaje =
-      siguienteEtapa.mensaje_notificacion ??
-      `Te asignaron la etapa "${siguienteEtapa.nombre}" en el proyecto "${proyecto.nombre}"`;
+      });
+    }
 
-    await supabase.from("notificaciones").insert({
-      usuario_id: siguienteResponsableId,
-      proyecto_id,
-      mensaje: `${mensaje} — Proyecto: ${proyecto.nombre}`,
+    const idsAResolver = [usuario_id, siguienteResponsableId].filter(Boolean) as string[];
+    const { data: usuariosParaSheet } = await supabase
+      .from("usuarios")
+      .select("id, nombre")
+      .in("id", idsAResolver);
+    const nombrePorId = new Map((usuariosParaSheet ?? []).map((u: any) => [u.id, u.nombre]));
+
+    await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-sheets`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fecha: new Date().toISOString(),
+        proyecto: proyecto.codigo_proyecto ?? proyecto.nombre,
+        agricultor: proyecto.nombre_agricultor ?? "—",
+        etapa_completada: etapaActual.nombre,
+        etapa_nueva: esUltimaEtapa ? null : siguienteEtapa.nombre,
+        responsable_anterior: nombrePorId.get(usuario_id) ?? usuario_id,
+        responsable_nuevo: siguienteResponsableId ? nombrePorId.get(siguienteResponsableId) ?? siguienteResponsableId : null,
+        finalizado: esUltimaEtapa,
+      }),
     });
+  })().catch((err) => console.error("Error en tareas de segundo plano de complete-stage", err));
+
+  // Importante: sin esto, Supabase puede cortar la ejecución apenas
+  // se envía la respuesta, dejando las notificaciones y el registro
+  // en Google Sheets a mitad de camino. waitUntil le avisa al
+  // servidor "dale tiempo a esto de terminar, aunque ya respondiste".
+  // @ts-ignore EdgeRuntime es un global propio del entorno de Supabase
+  if (typeof EdgeRuntime !== "undefined") {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(tareaSegundoPlano);
   }
-
-  const idsAResolver = [usuario_id, siguienteResponsableId].filter(Boolean) as string[];
-  const { data: usuariosParaSheet } = await supabase
-    .from("usuarios")
-    .select("id, nombre")
-    .in("id", idsAResolver);
-  const nombrePorId = new Map((usuariosParaSheet ?? []).map((u: any) => [u.id, u.nombre]));
-
-  fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-sheets`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fecha: new Date().toISOString(),
-      proyecto: proyecto.codigo_proyecto ?? proyecto.nombre,
-      agricultor: proyecto.nombre_agricultor ?? "—",
-      etapa_completada: etapaActual.nombre,
-      etapa_nueva: esUltimaEtapa ? null : siguienteEtapa.nombre,
-      responsable_anterior: nombrePorId.get(usuario_id) ?? usuario_id,
-      responsable_nuevo: siguienteResponsableId ? nombrePorId.get(siguienteResponsableId) ?? siguienteResponsableId : null,
-      finalizado: esUltimaEtapa,
-    }),
-  }).catch((err) => console.error("No se pudo notificar a google-sheets", err));
 
   return json({
     ok: true,
