@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { diasEnEtapa, estaArchivado, DIAS_PARA_ARCHIVAR, montosCompletos } from "@/lib/data/proyectos";
 import { MOTIVOS_CIERRE } from "@/lib/types";
-import PDFDocument from "pdfkit";
-import path from "path";
-import fs from "fs";
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, RGB } from "pdf-lib";
 
-const AZUL = "#1D4ED8";
-const CELESTE = "#0E7490";
-const CELESTE_BG = "#ECFEFF";
-const GRIS = "#475569";
-const GRIS_CLARO = "#F1F5F9";
-const VERDE = "#15803D";
-const VERDE_BG = "#F0FDF4";
-const NARANJA = "#C2410C";
-const NARANJA_BG = "#FFF7ED";
-const BORDE = "#DBEAFE";
+const AZUL = rgb(0.114, 0.306, 0.847);
+const CELESTE = rgb(0.055, 0.451, 0.565);
+const CELESTE_BG = rgb(0.925, 0.996, 1);
+const GRIS = rgb(0.278, 0.333, 0.412);
+const GRIS_CLARO = rgb(0.945, 0.961, 0.976);
+const VERDE = rgb(0.082, 0.502, 0.239);
+const VERDE_BG = rgb(0.941, 0.992, 0.957);
+const NARANJA = rgb(0.761, 0.255, 0.047);
+const NARANJA_BG = rgb(1, 0.969, 0.929);
+const ROJO = rgb(0.725, 0.11, 0.11);
+const ROJO_BG = rgb(0.996, 0.949, 0.949);
+const BORDE = rgb(0.859, 0.918, 0.996);
+const NEGRO = rgb(0.059, 0.09, 0.165);
+const BLANCO = rgb(1, 1, 1);
 
 const CAMPOS_MONTOS = [
   { key: "monto_formulacion", label: "Monto formulación" },
@@ -28,6 +30,136 @@ function formatoMoneda(valor: unknown) {
   const n = parseFloat(String(valor).replace(/[^\d.-]/g, ""));
   if (isNaN(n)) return "—";
   return "$ " + n.toLocaleString("es-CL");
+}
+
+function limpiarTexto(texto: string) {
+  return texto.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+}
+
+class Lienzo {
+  doc: PDFDocument;
+  page: PDFPage;
+  font: PDFFont;
+  fontBold: PDFFont;
+  fontItalic: PDFFont;
+  margen = 45;
+  ancho = 612;
+  alto = 792;
+  y = 792 - 45;
+
+  constructor(doc: PDFDocument, font: PDFFont, fontBold: PDFFont, fontItalic: PDFFont) {
+    this.doc = doc;
+    this.font = font;
+    this.fontBold = fontBold;
+    this.fontItalic = fontItalic;
+    this.page = doc.addPage([this.ancho, this.alto]);
+  }
+
+  get anchoUtil() {
+    return this.ancho - this.margen * 2;
+  }
+
+  asegurarEspacio(alturaNecesaria: number) {
+    if (this.y - alturaNecesaria < 55) {
+      this.page = this.doc.addPage([this.ancho, this.alto]);
+      this.y = this.alto - this.margen;
+    }
+  }
+
+  texto(texto: string, x: number, size: number, font: PDFFont, color: RGB) {
+    this.page.drawText(limpiarTexto(texto), { x, y: this.y, size, font, color });
+  }
+
+  parrafoConAjuste(texto: string, x: number, anchoMax: number, size: number, font: PDFFont, color: RGB, interlineado = 13) {
+    const palabras = limpiarTexto(texto).split(" ");
+    let linea = "";
+    const lineas: string[] = [];
+    for (const palabra of palabras) {
+      const prueba = linea ? `${linea} ${palabra}` : palabra;
+      if (font.widthOfTextAtSize(prueba, size) > anchoMax && linea) {
+        lineas.push(linea);
+        linea = palabra;
+      } else {
+        linea = prueba;
+      }
+    }
+    if (linea) lineas.push(linea);
+
+    this.asegurarEspacio(lineas.length * interlineado);
+    lineas.forEach((l) => {
+      this.page.drawText(l, { x, y: this.y, size, font, color });
+      this.y -= interlineado;
+    });
+    return lineas.length * interlineado;
+  }
+
+  linea() {
+    this.page.drawLine({
+      start: { x: this.margen, y: this.y },
+      end: { x: this.margen + this.anchoUtil, y: this.y },
+      thickness: 1,
+      color: BORDE,
+    });
+  }
+
+  rect(x: number, y: number, w: number, h: number, color: RGB) {
+    this.page.drawRectangle({ x, y, width: w, height: h, color });
+  }
+
+  seccion(titulo: string) {
+    this.asegurarEspacio(30);
+    this.y -= 10;
+    this.texto(titulo, this.margen, 12, this.fontBold, AZUL);
+    this.y -= 16;
+  }
+
+  avisoVacio(texto: string, color: RGB = NARANJA, bg: RGB = NARANJA_BG) {
+    const size = 9;
+    const anchoMax = this.anchoUtil - 20;
+    const palabras = limpiarTexto(texto).split(" ");
+    let linea = "";
+    const lineas: string[] = [];
+    for (const palabra of palabras) {
+      const prueba = linea ? `${linea} ${palabra}` : palabra;
+      if (this.fontItalic.widthOfTextAtSize(prueba, size) > anchoMax && linea) {
+        lineas.push(linea);
+        linea = palabra;
+      } else {
+        linea = prueba;
+      }
+    }
+    if (linea) lineas.push(linea);
+
+    const alturaCaja = lineas.length * 13 + 16;
+    this.asegurarEspacio(alturaCaja + 10);
+    this.rect(this.margen, this.y - alturaCaja + 13, this.anchoUtil, alturaCaja, bg);
+    let yTexto = this.y;
+    lineas.forEach((l) => {
+      this.page.drawText(l, { x: this.margen + 10, y: yTexto, size, font: this.fontItalic, color });
+      yTexto -= 13;
+    });
+    this.y -= alturaCaja + 10;
+  }
+
+  campos2col(campos: [string, string][]) {
+    const colAncho = this.anchoUtil / 2;
+    for (let i = 0; i < campos.length; i += 2) {
+      this.asegurarEspacio(36);
+      const startY = this.y;
+      this.texto(campos[i][0].toUpperCase(), this.margen, 7.5, this.font, GRIS);
+      this.y -= 12;
+      this.texto(campos[i][1] || "—", this.margen, 10.5, this.fontBold, NEGRO);
+      const finCol1 = this.y;
+
+      if (campos[i + 1]) {
+        let y2 = startY;
+        this.page.drawText(limpiarTexto(campos[i + 1][0].toUpperCase()), { x: this.margen + colAncho, y: y2, size: 7.5, font: this.font, color: GRIS });
+        y2 -= 12;
+        this.page.drawText(limpiarTexto(campos[i + 1][1] || "—"), { x: this.margen + colAncho, y: y2, size: 10.5, font: this.fontBold, color: NEGRO });
+      }
+      this.y = finCol1 - 12;
+    }
+  }
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -62,67 +194,39 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const diasParaArchivo = Math.max(0, DIAS_PARA_ARCHIVAR - dias);
   const datos = proyecto.datos_formulario ?? {};
 
-  const chunks: Buffer[] = [];
-  const doc = new PDFDocument({ margin: 45, size: "LETTER" });
-  doc.on("data", (c: Buffer) => chunks.push(c));
-  const fin = new Promise<Buffer>((resolve) => {
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-  });
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  const anchoUtil = doc.page.width - 90;
+  const c = new Lienzo(pdfDoc, font, fontBold, fontItalic);
 
-  // ---------- Encabezado ----------
   try {
-    const logoPath = path.join(process.cwd(), "public", "logo.png");
-    const logoBuffer = fs.readFileSync(logoPath);
-    doc.image(logoBuffer, 45, 40, { width: 90 });
-  } catch {
-    // Si el logo no se pudo cargar, se sigue sin él.
-  }
-  doc.fillColor(AZUL).fontSize(19).font("Helvetica-Bold").text("FICHA DE PROYECTO", 150, 42);
-  doc.fillColor(GRIS).fontSize(9).font("Helvetica").text(
-    `Generado el ${new Date().toLocaleDateString("es-CL")} por ${user.email}`,
-    150,
-    64
-  );
-  doc.moveTo(45, 95).lineTo(45 + anchoUtil, 95).strokeColor(BORDE).lineWidth(1).stroke();
-  doc.y = 108;
-
-  function seccion(titulo: string) {
-    doc.moveDown(0.6);
-    doc.fillColor(AZUL).fontSize(12).font("Helvetica-Bold").text(titulo);
-    doc.moveDown(0.3);
-  }
-
-  function campo2col(campos: [string, string][]) {
-    const colAncho = anchoUtil / 2;
-    let filaY = doc.y;
-    for (let i = 0; i < campos.length; i += 2) {
-      const startY = doc.y;
-      doc.fillColor(GRIS).fontSize(7.5).font("Helvetica").text(campos[i][0].toUpperCase(), 45, startY, { width: colAncho - 10 });
-      doc.fillColor("#0F172A").fontSize(10.5).font("Helvetica-Bold").text(campos[i][1], 45, doc.y, { width: colAncho - 10 });
-      let alturaCol1 = doc.y;
-
-      if (campos[i + 1]) {
-        doc.fillColor(GRIS).fontSize(7.5).font("Helvetica").text(campos[i + 1][0].toUpperCase(), 45 + colAncho, startY, { width: colAncho - 10 });
-        doc.fillColor("#0F172A").fontSize(10.5).font("Helvetica-Bold").text(campos[i + 1][1], 45 + colAncho, doc.y, { width: colAncho - 10 });
-      }
-      doc.y = Math.max(alturaCol1, doc.y) + 8;
+    const logoUrl = new URL("/logo.png", req.url).toString();
+    const res = await fetch(logoUrl);
+    if (res.ok) {
+      const bytes = await res.arrayBuffer();
+      const logoImg = await pdfDoc.embedPng(bytes);
+      const escala = 70 / logoImg.width;
+      c.page.drawImage(logoImg, {
+        x: c.margen,
+        y: c.y - logoImg.height * escala + 10,
+        width: 70,
+        height: logoImg.height * escala,
+      });
     }
+  } catch {
+    // Si el logo no carga, el PDF se genera igual, sin él.
   }
 
-  function avisoVacio(texto: string, color = NARANJA, bg = NARANJA_BG) {
-    const startY = doc.y;
-    doc.fillColor(bg).rect(45, startY, anchoUtil, 0).fill();
-    doc.fillColor(color).fontSize(9).font("Helvetica-Oblique");
-    const alturaTexto = doc.heightOfString(texto, { width: anchoUtil - 20 });
-    doc.fillColor(bg).rect(45, startY, anchoUtil, alturaTexto + 16).fill();
-    doc.fillColor(color).text(texto, 55, startY + 8, { width: anchoUtil - 20 });
-    doc.y = startY + alturaTexto + 24;
-  }
+  c.texto("FICHA DE PROYECTO", c.margen + 105, 19, fontBold, AZUL);
+  c.y -= 16;
+  c.texto(`Generado el ${new Date().toLocaleDateString("es-CL")} por ${user.email}`, c.margen + 105, 9, font, GRIS);
+  c.y -= 30;
+  c.linea();
+  c.y -= 15;
 
-  // ---------- Datos generales ----------
-  seccion("Datos generales");
+  c.seccion("Datos generales");
   const camposBase: [string, string][] = [
     ["Código de proyecto", proyecto.codigo_proyecto ?? "—"],
     ["Nombre agricultor", proyecto.nombre_agricultor ?? "—"],
@@ -130,155 +234,165 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (datos.tipo_proyecto) {
     const tipos = Array.isArray(datos.tipo_proyecto) ? datos.tipo_proyecto.join(", ") : datos.tipo_proyecto;
-    camposBase.push(["RUT agricultor", datos.rut_agricultor ?? "—"]);
-    camposBase.push(["Fuente de financiamiento", datos.fuente_financiamiento ?? "—"]);
-    camposBase.push(["Comuna", datos.comuna ?? "—"]);
-    camposBase.push(["Área / agencia", datos.area_agencia ?? "—"]);
-    camposBase.push(["Dirección", datos.direccion ?? "—"]);
-    camposBase.push(["Cantidad hectáreas", datos.cantidad_hectareas ? `${datos.cantidad_hectareas} há` : "—"]);
-    camposBase.push(["Tipo de proyecto", tipos]);
-    camposBase.push(["Empresa formuladora", datos.empresa_formuladora ?? "—"]);
-    camposBase.push(["Empresa constructora", datos.empresa_constructora ?? "—"]);
+    camposBase.push(
+      ["RUT agricultor", datos.rut_agricultor ?? "—"],
+      ["Fuente de financiamiento", datos.fuente_financiamiento ?? "—"],
+      ["Comuna", datos.comuna ?? "—"],
+      ["Área / agencia", datos.area_agencia ?? "—"],
+      ["Dirección", datos.direccion ?? "—"],
+      ["Cantidad hectáreas", datos.cantidad_hectareas ? `${datos.cantidad_hectareas} há` : "—"],
+      ["Tipo de proyecto", tipos],
+      ["Empresa formuladora", datos.empresa_formuladora ?? "—"],
+      ["Empresa constructora", datos.empresa_constructora ?? "—"]
+    );
   }
-
-  campo2col(camposBase);
+  c.campos2col(camposBase);
 
   if (!datos.tipo_proyecto) {
-    avisoVacio(
+    c.avisoVacio(
       "El resto de los datos generales (RUT, tipo de proyecto, financiamiento, ubicación, hectáreas, empresas) todavía no existen — se completan en la etapa 3 (Ingreso formulario de proyectos)."
     );
   }
 
-  // ---------- Estado actual ----------
-  seccion("Estado actual");
+  c.seccion("Estado actual");
 
   if (proyecto.finalizado) {
     const cerradoAnticipado = !!proyecto.motivo_cierre;
     const texto = cerradoAnticipado
       ? `Cerrado anticipadamente — ${MOTIVOS_CIERRE[proyecto.motivo_cierre] ?? proyecto.motivo_cierre}`
       : "Proyecto completado";
-    avisoVacio(texto, cerradoAnticipado ? NARANJA : VERDE, cerradoAnticipado ? NARANJA_BG : VERDE_BG);
+    c.avisoVacio(texto, cerradoAnticipado ? NARANJA : VERDE, cerradoAnticipado ? NARANJA_BG : VERDE_BG);
   } else {
-    const startY = doc.y;
-    doc.fillColor(CELESTE_BG).rect(45, startY, anchoUtil, 40).fill();
-    doc.fillColor(CELESTE).fontSize(10).font("Helvetica-Bold").text(
-      `FASE ${fase?.orden ?? "—"} · ${(fase?.nombre ?? "—").toUpperCase()}`,
-      55,
-      startY + 13
-    );
-    doc.fillColor("#0F172A").text(`Etapa ${etapaActual?.orden ?? "—"} · ${etapaActual?.nombre ?? "—"}`, 240, startY + 13);
-    const colorDias = dias <= 14 ? VERDE : dias <= 21 ? NARANJA : "#B91C1C";
-    doc.fillColor(colorDias).text(`● ${dias} día${dias === 1 ? "" : "s"} en esta etapa`, 420, startY + 13);
-    doc.y = startY + 52;
+    c.asegurarEspacio(50);
+    c.rect(c.margen, c.y - 32, c.anchoUtil, 40, CELESTE_BG);
+    const yCaja = c.y - 14;
+    c.page.drawText(limpiarTexto(`FASE ${fase?.orden ?? "—"} · ${(fase?.nombre ?? "—").toUpperCase()}`), { x: c.margen + 10, y: yCaja, size: 9.5, font: fontBold, color: CELESTE });
+    c.page.drawText(limpiarTexto(`Etapa ${etapaActual?.orden ?? "—"} · ${etapaActual?.nombre ?? "—"}`), { x: c.margen + 195, y: yCaja, size: 9.5, font: fontBold, color: NEGRO });
+    const colorDias = dias <= 14 ? VERDE : dias <= 21 ? NARANJA : ROJO;
+    c.page.drawText(limpiarTexto(`${dias} dia${dias === 1 ? "" : "s"} en esta etapa`), { x: c.margen + 375, y: yCaja, size: 9.5, font: fontBold, color: colorDias });
+    c.y -= 50;
 
-    doc.fillColor("#0F172A").fontSize(9.5).font("Helvetica").text(
-      `Progreso general del flujo: ${Math.round(((etapaActual?.orden ?? 0) / 27) * 100)}% (etapa ${etapaActual?.orden ?? "—"} de 27)`
+    c.texto(
+      `Progreso general del flujo: ${Math.round(((etapaActual?.orden ?? 0) / 27) * 100)}% (etapa ${etapaActual?.orden ?? "—"} de 27)`,
+      c.margen,
+      9.5,
+      font,
+      NEGRO
     );
-    doc.moveDown(0.3);
+    c.y -= 20;
 
     if (archivado) {
-      avisoVacio(
+      c.avisoVacio(
         proyecto.archivado_manual
-          ? `Este proyecto está ARCHIVADO manualmente. Motivo: ${proyecto.archivado_motivo ?? "—"}`
-          : `Este proyecto está ARCHIVADO automáticamente por llevar ${dias} días sin moverse de etapa (61 días o más).`,
-        "#B91C1C",
-        "#FEF2F2"
+          ? `Este proyecto esta ARCHIVADO manualmente. Motivo: ${proyecto.archivado_motivo ?? "—"}`
+          : `Este proyecto esta ARCHIVADO automaticamente por llevar ${dias} dias sin moverse de etapa (61 dias o mas).`,
+        ROJO,
+        ROJO_BG
       );
     } else {
-      doc.fillColor(GRIS).fontSize(9).font("Helvetica").text(
-        `Este proyecto NO está archivado. Faltan ${diasParaArchivo} día${diasParaArchivo === 1 ? "" : "s"} para que se archive automáticamente si no se mueve de etapa.`
+      c.parrafoConAjuste(
+        `Este proyecto NO esta archivado. Faltan ${diasParaArchivo} dia${diasParaArchivo === 1 ? "" : "s"} para que se archive automaticamente si no se mueve de etapa.`,
+        c.margen,
+        c.anchoUtil,
+        9,
+        font,
+        GRIS
       );
-      doc.moveDown(0.5);
+      c.y -= 8;
     }
   }
 
-  // ---------- Montos ----------
-  seccion("Montos de postulación");
+  c.seccion("Montos de postulación");
   if (montosCompletos(datos)) {
-    const startY = doc.y;
     const filaAlto = 22;
-    doc.fillColor(AZUL).rect(45, startY, anchoUtil, filaAlto).fill();
-    doc.fillColor("#FFFFFF").fontSize(9.5).font("Helvetica-Bold").text("Concepto", 55, startY + 6);
-    doc.text("Monto (CLP)", 45, startY + 6, { width: anchoUtil - 10, align: "right" });
-    let y = startY + filaAlto;
-    CAMPOS_MONTOS.forEach((c, i) => {
+    c.asegurarEspacio(filaAlto * (CAMPOS_MONTOS.length + 1) + 10);
+    const startY = c.y;
+    c.rect(c.margen, startY - filaAlto + 6, c.anchoUtil, filaAlto, AZUL);
+    c.page.drawText("Concepto", { x: c.margen + 10, y: startY - 8, size: 9.5, font: fontBold, color: BLANCO });
+    c.page.drawText("Monto (CLP)", { x: c.margen + c.anchoUtil - 110, y: startY - 8, size: 9.5, font: fontBold, color: BLANCO });
+    let y = startY - filaAlto;
+    CAMPOS_MONTOS.forEach((cm, i) => {
       const esUltimo = i === CAMPOS_MONTOS.length - 1;
-      doc.fillColor(esUltimo ? GRIS_CLARO : "#FFFFFF").rect(45, y, anchoUtil, filaAlto).fill();
-      doc.fillColor("#0F172A").fontSize(9.5).font(esUltimo ? "Helvetica-Bold" : "Helvetica").text(c.label, 55, y + 6);
-      doc.text(formatoMoneda(datos[c.key]), 45, y + 6, { width: anchoUtil - 10, align: "right" });
-      y += filaAlto;
+      c.rect(c.margen, y - filaAlto + 6, c.anchoUtil, filaAlto, esUltimo ? GRIS_CLARO : BLANCO);
+      c.page.drawText(limpiarTexto(cm.label), { x: c.margen + 10, y: y - 8, size: 9.5, font: esUltimo ? fontBold : font, color: NEGRO });
+      const montoTxt = formatoMoneda(datos[cm.key]);
+      c.page.drawText(montoTxt, { x: c.margen + c.anchoUtil - 10 - fontBold.widthOfTextAtSize(montoTxt, 9.5), y: y - 8, size: 9.5, font: fontBold, color: NEGRO });
+      y -= filaAlto;
     });
-    doc.strokeColor(BORDE).lineWidth(0.5).rect(45, startY, anchoUtil, filaAlto * (CAMPOS_MONTOS.length + 1)).stroke();
-    doc.y = y + 10;
+    c.y = y - 8;
   } else {
-    avisoVacio(
-      "Todavía no se han cargado montos — se completan en la etapa 15 (Postulación), a cargo del Administrador."
-    );
+    c.avisoVacio("Todavia no se han cargado montos — se completan en la etapa 15 (Postulacion), a cargo del Administrador.");
   }
 
-  // ---------- Timeline ----------
-  seccion("Historial de movimientos");
+  c.seccion("Historial de movimientos");
   if (timeline && timeline.length > 0) {
-    doc.fillColor(CELESTE).rect(45, doc.y, anchoUtil, 20).fill();
-    doc.fillColor("#FFFFFF").fontSize(8.5).font("Helvetica-Bold");
-    const yHeader = doc.y - 20;
-    doc.text("Fecha", 50, yHeader + 5, { width: 70 });
-    doc.text("Movimiento", 122, yHeader + 5, { width: 300 });
-    doc.text("Responsable", 425, yHeader + 5, { width: 110 });
+    c.asegurarEspacio(24);
+    c.rect(c.margen, c.y - 12, c.anchoUtil, 20, CELESTE);
+    c.page.drawText("Fecha", { x: c.margen + 8, y: c.y - 6, size: 8.5, font: fontBold, color: BLANCO });
+    c.page.drawText("Movimiento", { x: c.margen + 75, y: c.y - 6, size: 8.5, font: fontBold, color: BLANCO });
+    c.page.drawText("Responsable", { x: c.margen + 380, y: c.y - 6, size: 8.5, font: fontBold, color: BLANCO });
+    c.y -= 20;
 
     timeline.forEach((ev: any, i: number) => {
       const fecha = new Date(ev.ocurrido_en).toLocaleDateString("es-CL");
       const nombreUsuario = ev.usuario_id ? usuariosPorId.get(ev.usuario_id) ?? "—" : "—";
-      const alturaDesc = doc.heightOfString(ev.descripcion, { width: 300 });
-      const alturaFila = Math.max(alturaDesc, 12) + 10;
 
-      if (doc.y + alturaFila > doc.page.height - 60) {
-        doc.addPage();
-        doc.y = 45;
+      const palabras = limpiarTexto(ev.descripcion).split(" ");
+      let linea = "";
+      const lineas: string[] = [];
+      for (const palabra of palabras) {
+        const prueba = linea ? `${linea} ${palabra}` : palabra;
+        if (font.widthOfTextAtSize(prueba, 8.5) > 295 && linea) {
+          lineas.push(linea);
+          linea = palabra;
+        } else {
+          linea = prueba;
+        }
       }
+      if (linea) lineas.push(linea);
 
-      const y = doc.y;
-      if (i % 2 === 1) doc.fillColor(GRIS_CLARO).rect(45, y, anchoUtil, alturaFila).fill();
-      doc.fillColor("#0F172A").fontSize(8.5).font("Helvetica").text(fecha, 50, y + 5, { width: 70 });
-      doc.fillColor(GRIS).text(ev.descripcion, 122, y + 5, { width: 300 });
-      doc.fillColor("#0F172A").text(nombreUsuario, 425, y + 5, { width: 110 });
-      doc.y = y + alturaFila;
+      const alturaFila = Math.max(lineas.length * 11, 14) + 6;
+      c.asegurarEspacio(alturaFila);
+
+      if (i % 2 === 1) c.rect(c.margen, c.y - alturaFila + 6, c.anchoUtil, alturaFila, GRIS_CLARO);
+      c.page.drawText(fecha, { x: c.margen + 8, y: c.y - 6, size: 8.5, font, color: NEGRO });
+      let yDesc = c.y - 6;
+      lineas.forEach((l) => {
+        c.page.drawText(l, { x: c.margen + 75, y: yDesc, size: 8.5, font, color: GRIS });
+        yDesc -= 11;
+      });
+      c.page.drawText(limpiarTexto(nombreUsuario), { x: c.margen + 380, y: c.y - 6, size: 8.5, font, color: NEGRO });
+      c.y -= alturaFila;
     });
-    doc.moveDown(0.5);
+    c.y -= 8;
   } else {
-    avisoVacio("Este proyecto todavía no tiene movimientos registrados.");
+    c.avisoVacio("Este proyecto todavia no tiene movimientos registrados.");
   }
 
-  // ---------- Documentos legales ----------
-  seccion("Documentos legales solicitados");
+  c.seccion("Documentos legales solicitados");
   if (documentos && documentos.length > 0) {
     documentos.forEach((d: any) => {
       const nombre = d.documentos_legales_catalogo?.nombre ?? "Documento";
-      const marca = d.completado ? "✓" : "○";
-      const color = d.completado ? VERDE : GRIS;
+      c.asegurarEspacio(18);
       const bg = d.completado ? VERDE_BG : GRIS_CLARO;
-      doc.fillColor(bg).rect(45, doc.y, anchoUtil, 18).fill();
-      doc.fillColor(color).fontSize(9).font("Helvetica").text(`${marca}  ${nombre}`, 55, doc.y + 4.5);
-      doc.y += 18;
+      const color = d.completado ? VERDE : GRIS;
+      c.rect(c.margen, c.y - 12, c.anchoUtil, 18, bg);
+      c.page.drawText(limpiarTexto(`${d.completado ? "check" : "o"}  ${nombre}`), { x: c.margen + 10, y: c.y - 6.5, size: 9, font, color });
+      c.y -= 18;
     });
-    doc.moveDown(0.3);
+    c.y -= 8;
   } else {
-    avisoVacio("Todavía no se ha solicitado ningún documento legal — se define en la etapa 5.");
+    c.avisoVacio("Todavia no se ha solicitado ningun documento legal — se define en la etapa 5.");
   }
 
-  // ---------- Pie ----------
-  doc.moveDown(1);
-  doc.moveTo(45, doc.y).lineTo(45 + anchoUtil, doc.y).strokeColor(BORDE).lineWidth(0.5).stroke();
-  doc.moveDown(0.3);
-  doc.fillColor(GRIS).fontSize(8).font("Helvetica").text(
-    "Documento generado automáticamente por Riego App — INSSAL Ingeniería y Construcción.",
-    45
-  );
+  c.asegurarEspacio(30);
+  c.linea();
+  c.y -= 14;
+  c.texto("Documento generado automaticamente por Riego App — INSSAL Ingenieria y Construccion.", c.margen, 8, font, GRIS);
 
-  doc.end();
-  const buffer = await fin;
+  const bytes = await pdfDoc.save();
 
-  return new NextResponse(new Uint8Array(buffer), {
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="Ficha_Proyecto_${proyecto.codigo_proyecto ?? proyecto.id}.pdf"`,
