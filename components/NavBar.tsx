@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -81,9 +82,10 @@ export function NavBar() {
         {tabsVisibles.map((tab) => {
           const activo = pathname?.startsWith(tab.href);
           return (
-            <a
+            <Link
               key={tab.href}
               href={tab.href}
+              prefetch
               className="text-base px-3 py-1.5 rounded-md whitespace-nowrap"
               style={{
                 color: activo ? "#3B82F6" : "var(--text-secondary)",
@@ -92,7 +94,7 @@ export function NavBar() {
               }}
             >
               {tab.label}
-            </a>
+            </Link>
           );
         })}
       </nav>
