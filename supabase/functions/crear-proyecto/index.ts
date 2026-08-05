@@ -36,8 +36,8 @@ Deno.serve(async (req: Request) => {
     return jsonError("Usuario no encontrado", 404);
   }
 
-  if (usuario.rol_id !== "gerente_general") {
-    return jsonError("Solo el Gerente general puede crear proyectos", 403);
+  if (!["gerente_general", "administrador"].includes(usuario.rol_id)) {
+    return jsonError("Solo el Gerente general o el Administrador pueden crear proyectos", 403);
   }
 
   const { data: etapa1 } = await supabase

@@ -36,8 +36,8 @@ Deno.serve(async (req: Request) => {
     .eq("id", usuario_id)
     .single();
 
-  if (errUsuario || !usuario || usuario.rol_id !== "gerente_general") {
-    return jsonError("Solo el Gerente general puede decidir esto", 403);
+  if (errUsuario || !usuario || !["gerente_general", "administrador", "ingeniero_proyectos"].includes(usuario.rol_id)) {
+    return jsonError("No tienes permiso para decidir esto", 403);
   }
 
   const { data: proyecto, error: errProyecto } = await supabase
@@ -80,6 +80,23 @@ Deno.serve(async (req: Request) => {
     return jsonError("No se encontró la etapa 2", 500);
   }
 
+  // El responsable de la etapa 2 se resuelve según a quién le
+  // corresponde esa etapa (Gerente general) — no necesariamente a
+  // quien presionó "Sí", ya que ahora varios roles pueden hacerlo.
+  let responsableEtapa2 = usuario_id;
+  if (etapa2.usuario_asignado_id) {
+    responsableEtapa2 = etapa2.usuario_asignado_id;
+  } else if (etapa2.rol_id !== usuario.rol_id) {
+    const { data: usuarioPorRol } = await supabase
+      .from("usuarios")
+      .select("id")
+      .eq("rol_id", etapa2.rol_id)
+      .eq("activo", true)
+      .limit(1)
+      .maybeSingle();
+    if (usuarioPorRol) responsableEtapa2 = usuarioPorRol.id;
+  }
+
   await supabase
     .from("proyectos")
     .update({
@@ -89,7 +106,7 @@ Deno.serve(async (req: Request) => {
       aviso_retomar_enviado: false,
       etapa_actual_id: etapa2.id,
       etapa_actual_desde: new Date().toISOString(),
-      responsable_actual_id: usuario_id,
+      responsable_actual_id: responsableEtapa2,
       archivado_manual: false,
       archivado_motivo: null,
       archivado_en: null,

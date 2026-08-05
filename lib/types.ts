@@ -70,6 +70,15 @@ export interface Proyecto {
   datos_formulario: Record<string, any>;
 }
 
+// Roles que ahora comparten las mismas facultades de gestión que
+// Gerente general (cerrar anticipado, eliminar, retroceder etapa,
+// archivar/desarchivar, decidir "¿Retomar?", ver cualquier
+// proyecto) — todos menos crear un proyecto nuevo.
+export const ROLES_GESTION = ["gerente_general", "administrador", "ingeniero_proyectos"];
+
+// Solo estos 2 roles pueden crear un proyecto nuevo.
+export const ROLES_CREAR_PROYECTO = ["gerente_general", "administrador"];
+
 export const MOTIVOS_CIERRE: Record<string, string> = {
   rechazo_presupuesto: "Rechazo de presupuesto",
   falta_documentos_legales: "Falta de documentos legales",

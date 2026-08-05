@@ -44,9 +44,6 @@ export default async function KpisPage() {
 
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
-  if (!["gerente_general", "administrador"].includes(usuario.rol_id)) {
-    redirect("/proyectos");
-  }
 
   const [
     proyectosActivos,

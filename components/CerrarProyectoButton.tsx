@@ -50,10 +50,10 @@ export function CerrarProyectoButton({
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="text-sm mt-3"
-        style={{ color: "var(--status-overdue-text)" }}
+        className="w-full h-10 rounded-lg text-sm font-medium border mt-2 flex items-center justify-center gap-2"
+        style={{ borderColor: "var(--status-due-soon-fill)", background: "var(--status-due-soon-bg)", color: "var(--status-due-soon-text)" }}
       >
-        Cerrar proyecto anticipadamente
+        ⏸ Cerrar proyecto anticipadamente
       </button>
     );
   }

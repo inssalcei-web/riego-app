@@ -73,10 +73,10 @@ export function ArchivarProyectoButton({
         <button
           onClick={desarchivar}
           disabled={enviando}
-          className="text-sm"
-          style={{ color: "var(--fase2-text)" }}
+          className="w-full h-10 rounded-lg text-sm font-medium border mt-2 flex items-center justify-center gap-2"
+          style={{ borderColor: "var(--border-strong)", background: "var(--surface-page)", color: "var(--text-primary)" }}
         >
-          {enviando ? "Desarchivando..." : "📤 Desarchivar proyecto"}
+          📤 {enviando ? "Desarchivando..." : "Desarchivar proyecto"}
         </button>
       </div>
     );
@@ -86,8 +86,8 @@ export function ArchivarProyectoButton({
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="text-sm mt-3"
-        style={{ color: "var(--text-secondary)" }}
+        className="w-full h-10 rounded-lg text-sm font-medium border mt-2 flex items-center justify-center gap-2"
+        style={{ borderColor: "var(--border-strong)", background: "var(--surface-page)", color: "var(--text-primary)" }}
       >
         📥 Archivar proyecto
       </button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ROLES_GESTION } from "@/lib/types";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
 import { RetrocederEtapaButton } from "@/components/RetrocederEtapaButton";
@@ -89,7 +90,7 @@ export function DetalleProyectoModal({
     })();
   }, [etapaOrdenActual]);
 
-  const puedeGestionar = rolUsuario === "gerente_general" || rolUsuario === "administrador";
+  const puedeGestionar = rolUsuario !== null && ROLES_GESTION.includes(rolUsuario);
 
   return (
     <div
@@ -154,6 +155,9 @@ export function DetalleProyectoModal({
             una tarea propia. */}
         {puedeGestionar && usuarioId && (
           <div className="mt-4 pt-3 border-t flex flex-col gap-2" style={{ borderColor: "var(--border-default)" }}>
+            {!finalizado && (
+              <CerrarProyectoButton proyectoId={proyectoId} usuarioId={usuarioId} onSuccess={onClose} />
+            )}
             {!finalizado && etapaOrdenActual > 1 && (
               <RetrocederEtapaButton
                 proyectoId={proyectoId}
@@ -169,9 +173,6 @@ export function DetalleProyectoModal({
                 yaArchivado={archivado}
                 onSuccess={onClose}
               />
-            )}
-            {!finalizado && rolUsuario === "gerente_general" && (
-              <CerrarProyectoButton proyectoId={proyectoId} usuarioId={usuarioId} onSuccess={onClose} />
             )}
             <EliminarProyectoButton
               proyectoId={proyectoId}

@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
     .eq("id", usuario_id)
     .single();
 
-  if (errUsuario || !usuario || !["gerente_general", "administrador"].includes(usuario.rol_id)) {
+  if (errUsuario || !usuario || !["gerente_general", "administrador", "ingeniero_proyectos"].includes(usuario.rol_id)) {
     return jsonError("Solo el Gerente general o el Administrador pueden devolver etapas", 403);
   }
 

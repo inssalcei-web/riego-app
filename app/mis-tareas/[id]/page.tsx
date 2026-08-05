@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerUsuarioActual } from "@/lib/data/proyectos";
+import { obtenerUsuarioActual, estaArchivado } from "@/lib/data/proyectos";
 import { ChecklistPanel } from "@/components/ChecklistPanel";
 import { FormularioIngresoPanel } from "@/components/FormularioIngresoPanel";
 import { DocumentosLegalesPanel } from "@/components/DocumentosLegalesPanel";
@@ -8,8 +8,9 @@ import { MontosPostulacionPanel } from "@/components/MontosPostulacionPanel";
 import { CerrarProyectoButton } from "@/components/CerrarProyectoButton";
 import { EliminarProyectoButton } from "@/components/EliminarProyectoButton";
 import { RetrocederEtapaButton } from "@/components/RetrocederEtapaButton";
+import { ArchivarProyectoButton } from "@/components/ArchivarProyectoButton";
 import { NavBar } from "@/components/NavBar";
-import { ChecklistItemConEstado, MOTIVOS_CIERRE } from "@/lib/types";
+import { ChecklistItemConEstado, MOTIVOS_CIERRE, ROLES_GESTION } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -103,24 +104,31 @@ export default async function DetalleProyectoPage({
             <ChecklistPanelServerWrapper proyectoId={id} etapaId={proyecto.etapa_actual_id} usuarioId={usuario.id} />
           )}
 
-          {!proyecto.finalizado && ["gerente_general", "administrador"].includes(usuario.rol_id) && etapa && etapa.orden > 1 && (
-            <RetrocederEtapaButton
-              proyectoId={id}
-              usuarioId={usuario.id}
-              etapaActualNombre={etapa.nombre}
-            />
-          )}
-
-          {!proyecto.finalizado && usuario.rol_id === "gerente_general" && (
-            <CerrarProyectoButton proyectoId={id} usuarioId={usuario.id} />
-          )}
-
-          {["gerente_general", "administrador"].includes(usuario.rol_id) && (
-            <EliminarProyectoButton
-              proyectoId={id}
-              usuarioId={usuario.id}
-              codigoProyecto={proyecto.codigo_proyecto ?? "ELIMINAR"}
-            />
+          {ROLES_GESTION.includes(usuario.rol_id) && (
+            <div className="mt-4 pt-3 border-t flex flex-col gap-2" style={{ borderColor: "var(--border-default)" }}>
+              {!proyecto.finalizado && (
+                <>
+                  <CerrarProyectoButton proyectoId={id} usuarioId={usuario.id} />
+                  {etapa && etapa.orden > 1 && (
+                    <RetrocederEtapaButton
+                      proyectoId={id}
+                      usuarioId={usuario.id}
+                      etapaActualNombre={etapa.nombre}
+                    />
+                  )}
+                  <ArchivarProyectoButton
+                    proyectoId={id}
+                    usuarioId={usuario.id}
+                    yaArchivado={estaArchivado(proyecto)}
+                  />
+                </>
+              )}
+              <EliminarProyectoButton
+                proyectoId={id}
+                usuarioId={usuario.id}
+                codigoProyecto={proyecto.codigo_proyecto ?? "ELIMINAR"}
+              />
+            </div>
           )}
         </div>
       </main>

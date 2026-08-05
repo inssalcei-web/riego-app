@@ -7,6 +7,7 @@ import {
   obtenerFasesOrdenadas,
   obtenerProyectosPendientesRetomar,
 } from "@/lib/data/proyectos";
+import { ROLES_GESTION, ROLES_CREAR_PROYECTO } from "@/lib/types";
 import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
 import { RetomarProyectoCard } from "@/components/RetomarProyectoCard";
 import { NavBar } from "@/components/NavBar";
@@ -20,11 +21,13 @@ export default async function ProyectosPage() {
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
 
+  const puedeVerRetomar = usuario ? ROLES_GESTION.includes(usuario.rol_id) : false;
+
   const [proyectosActivos, proyectosTerminados, fases, proyectosPendientesRetomar] = await Promise.all([
     obtenerProyectosActivos(supabase),
     obtenerProyectosTerminados(supabase),
     obtenerFasesOrdenadas(supabase),
-    usuario?.rol_id === "gerente_general" ? obtenerProyectosPendientesRetomar(supabase) : Promise.resolve([]),
+    puedeVerRetomar ? obtenerProyectosPendientesRetomar(supabase) : Promise.resolve([]),
   ]);
 
   // La fase 1 (Preparación) es donde vive la etapa 2 ("Visita
@@ -37,7 +40,7 @@ export default async function ProyectosPage() {
     <div className="min-h-screen">
       <NavBar />
       <main className="p-5">
-        {usuario?.rol_id === "gerente_general" && (
+        {usuario && ROLES_CREAR_PROYECTO.includes(usuario.rol_id) && (
           <div className="flex justify-end mb-4">
             <Link
               href="/proyectos/nuevo"

@@ -10,7 +10,7 @@ const TABS = [
   { href: "/proyectos", label: "Proyectos activos" },
   { href: "/mis-tareas", label: "Mis tareas" },
   { href: "/archivados", label: "Archivados" },
-  { href: "/kpis", label: "KPIs e informes", soloRoles: ["gerente_general", "administrador"] },
+  { href: "/kpis", label: "KPIs e informes" },
 ];
 
 export function NavBar() {
@@ -36,7 +36,7 @@ export function NavBar() {
     window.location.href = "/login";
   }
 
-  const tabsVisibles = TABS.filter((tab) => !tab.soloRoles || (rol && tab.soloRoles.includes(rol)));
+  const tabsVisibles = TABS;
 
   return (
     <header

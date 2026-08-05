@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { ProyectoConDetalle, ColorSemaforo } from "@/lib/types";
 
 const CAMPOS_MONTOS = ["monto_formulacion", "monto_construccion", "monto_aporte_propio", "monto_total_proyecto"];
-export const DIAS_PARA_ARCHIVAR = 61;
+export const DIAS_PARA_ARCHIVAR = 31;
 
 export function montosCompletos(datosFormulario: Record<string, any> | null | undefined): boolean {
   const datos = datosFormulario ?? {};
@@ -132,6 +132,7 @@ async function enriquecerProyectos(
     }
 
     const dias = diasEnEtapa(p.etapa_actual_desde);
+    const archivado = estaArchivado(p);
 
     return {
       ...p,
@@ -145,8 +146,11 @@ async function enriquecerProyectos(
       fuente_financiamiento: p.datos_formulario?.fuente_financiamiento ?? null,
       porcentaje_avance: Math.round(((etapa?.orden ?? 0) / 27) * 100),
       dias_en_etapa: dias,
-      color_semaforo: colorSemaforo(dias),
-      archivado: estaArchivado(p),
+      // Mientras esté archivado, el semáforo queda en rojo fijo,
+      // sin importar cuántos días marque — es una señal de "esto
+      // necesita atención", no un cálculo de tiempo.
+      color_semaforo: archivado ? "rojo" : colorSemaforo(dias),
+      archivado,
     };
   });
 }

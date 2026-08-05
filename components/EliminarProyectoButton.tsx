@@ -50,10 +50,10 @@ export function EliminarProyectoButton({
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="text-sm mt-3"
-        style={{ color: "var(--status-overdue-text)" }}
+        className="w-full h-10 rounded-lg text-sm font-medium border mt-2 flex items-center justify-center gap-2"
+        style={{ borderColor: "var(--status-overdue-fill)", background: "var(--status-overdue-bg)", color: "var(--status-overdue-text)" }}
       >
-        Eliminar proyecto por completo
+        🗑 Eliminar proyecto por completo
       </button>
     );
   }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ProyectoConDetalle, MOTIVOS_CIERRE } from "@/lib/types";
+import { ProyectoConDetalle, MOTIVOS_CIERRE, ROLES_GESTION } from "@/lib/types";
 import { DetalleProyectoModal } from "@/components/DetalleProyectoModal";
 
 const COLORES_FASE = [
@@ -28,7 +28,7 @@ export function CollapsibleProjectCard({
   const [modalAbierto, setModalAbierto] = useState(false);
 
   const puedeVerDetalle =
-    modo === "mis-tareas" || rolUsuario === "gerente_general" || rolUsuario === "administrador";
+    modo === "mis-tareas" || (rolUsuario !== null && ROLES_GESTION.includes(rolUsuario));
 
   const cerradoAnticipado = proyecto.finalizado && proyecto.motivo_cierre;
   const colores = COLORES_FASE[proyecto.fase_orden] ?? COLORES_FASE[1]!;

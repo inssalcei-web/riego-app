@@ -36,8 +36,8 @@ Deno.serve(async (req: Request) => {
     .eq("id", usuario_id)
     .single();
 
-  if (errUsuario || !usuario || !["gerente_general", "administrador"].includes(usuario.rol_id)) {
-    return jsonError("Solo el Gerente general o el Administrador pueden archivar proyectos", 403);
+  if (errUsuario || !usuario || !["gerente_general", "administrador", "ingeniero_proyectos"].includes(usuario.rol_id)) {
+    return jsonError("No tienes permiso para archivar proyectos", 403);
   }
 
   const { data: proyecto, error: errProyecto } = await supabase
@@ -83,6 +83,9 @@ Deno.serve(async (req: Request) => {
         archivado_motivo: null,
         archivado_en: null,
         archivado_por: null,
+        // Al desarchivar, el semáforo vuelve a empezar de cero —
+        // como si el proyecto recién entrara a esta etapa hoy.
+        etapa_actual_desde: new Date().toISOString(),
       })
       .eq("id", proyecto_id);
 

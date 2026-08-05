@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
     .eq("id", usuario_id)
     .single();
 
-  if (errUsuario || !usuario || !["gerente_general", "administrador"].includes(usuario.rol_id)) {
+  if (errUsuario || !usuario || !["gerente_general", "administrador", "ingeniero_proyectos"].includes(usuario.rol_id)) {
     return jsonError("No tienes permiso para eliminar proyectos", 403);
   }
 

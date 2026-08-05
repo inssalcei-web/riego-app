@@ -39,8 +39,8 @@ Deno.serve(async (req: Request) => {
     .eq("id", usuario_id)
     .single();
 
-  if (errUsuario || !usuario || usuario.rol_id !== "gerente_general") {
-    return jsonError("Solo el Gerente general puede cerrar un proyecto anticipadamente", 403);
+  if (errUsuario || !usuario || !["gerente_general", "administrador", "ingeniero_proyectos"].includes(usuario.rol_id)) {
+    return jsonError("No tienes permiso para cerrar un proyecto anticipadamente", 403);
   }
 
   const { data: proyecto, error: errProyecto } = await supabase
