@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -13,30 +13,103 @@ const TABS = [
   { href: "/kpis", label: "KPIs e informes" },
 ];
 
+const CLAVE_SESION = "riego-app-sesion-id";
+const CLAVE_INICIO_SESION = "riego-app-sesion-iniciada-en";
+const INTERVALO_LATIDO_MS = 60_000;
+
+function formatoFechaCorta(iso: string) {
+  return new Date(iso).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
+}
+
 export function NavBar() {
   const pathname = usePathname();
   const supabase = createClient();
   const [rol, setRol] = useState<string | null>(null);
   const [nombreUsuario, setNombreUsuario] = useState<string | null>(null);
+  const [ultimaConexionAnterior, setUltimaConexionAnterior] = useState<string | null>(null);
+  const sesionIdRef = useRef<string | null>(null);
+  const iniciadaEnRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let intervalo: ReturnType<typeof setInterval> | null = null;
+
     (async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from("usuarios").select("rol_id, nombre").eq("auth_user_id", user.id).single();
+      const { data } = await supabase.from("usuarios").select("id, rol_id, nombre").eq("auth_user_id", user.id).single();
       setRol(data?.rol_id ?? null);
       setNombreUsuario(data?.nombre ?? null);
+      if (!data?.id) return;
+
+      // "Última conexión": la sesión anterior a la que se está
+      // iniciando ahora mismo (así se puede mostrar "estuviste acá
+      // por última vez el ..." en vez de la sesión actual).
+      const { data: sesionAnterior } = await supabase
+        .from("sesiones_usuario")
+        .select("iniciada_en")
+        .eq("usuario_id", data.id)
+        .order("iniciada_en", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (sesionAnterior) setUltimaConexionAnterior(sesionAnterior.iniciada_en);
+
+      // Una fila de sesiones_usuario = una pestaña abierta, desde
+      // que se abre hasta que se cierra (sessionStorage es por
+      // pestaña). Mientras la pestaña siga abierta y visible, se
+      // manda un "latido" cada minuto que extiende su duración.
+      let sesionId = sessionStorage.getItem(CLAVE_SESION);
+      let iniciadaEn = sessionStorage.getItem(CLAVE_INICIO_SESION);
+
+      if (!sesionId) {
+        const { data: nueva } = await supabase
+          .from("sesiones_usuario")
+          .insert({ usuario_id: data.id })
+          .select("id, iniciada_en")
+          .single();
+        if (nueva) {
+          sesionId = nueva.id as string;
+          iniciadaEn = nueva.iniciada_en as string;
+          sessionStorage.setItem(CLAVE_SESION, sesionId);
+          sessionStorage.setItem(CLAVE_INICIO_SESION, iniciadaEn);
+        }
+      }
+
+      sesionIdRef.current = sesionId;
+      iniciadaEnRef.current = iniciadaEn;
+
+      async function latir() {
+        if (!sesionIdRef.current || !iniciadaEnRef.current) return;
+        const ahora = Date.now();
+        const duracionSegundos = Math.max(0, Math.floor((ahora - new Date(iniciadaEnRef.current).getTime()) / 1000));
+        await supabase
+          .from("sesiones_usuario")
+          .update({ ultima_actividad: new Date(ahora).toISOString(), duracion_segundos: duracionSegundos })
+          .eq("id", sesionIdRef.current);
+      }
+
+      await latir();
+      intervalo = setInterval(() => {
+        if (document.visibilityState === "visible") latir();
+      }, INTERVALO_LATIDO_MS);
     })();
+
+    return () => {
+      if (intervalo) clearInterval(intervalo);
+    };
   }, []);
 
   async function cerrarSesion() {
+    sessionStorage.removeItem(CLAVE_SESION);
+    sessionStorage.removeItem(CLAVE_INICIO_SESION);
     await supabase.auth.signOut();
     window.location.href = "/login";
   }
 
-  const tabsVisibles = TABS;
+  // El rol "visualizador" (solo lectura) ve el tablero de proyectos
+  // y el detalle de cada uno, pero no el panel de KPIs.
+  const tabsVisibles = rol === "visualizador" ? TABS.filter((t) => t.href !== "/kpis") : TABS;
 
   return (
     <header
@@ -49,10 +122,17 @@ export function NavBar() {
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {nombreUsuario && (
             <span
-              className="text-sm whitespace-nowrap hidden sm:inline"
+              className="text-sm whitespace-nowrap hidden sm:flex flex-col items-end leading-tight"
               style={{ color: "var(--text-secondary)" }}
             >
-              Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
+              <span>
+                Usuario activo: <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{nombreUsuario}</span>
+              </span>
+              {ultimaConexionAnterior && (
+                <span className="text-sm" style={{ color: "var(--text-secondary)", opacity: 0.75 }}>
+                  Última conexión: {formatoFechaCorta(ultimaConexionAnterior)}
+                </span>
+              )}
             </span>
           )}
           <ThemeToggle />

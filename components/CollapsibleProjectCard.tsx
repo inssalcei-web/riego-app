@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ProyectoConDetalle, MOTIVOS_CIERRE, ROLES_GESTION } from "@/lib/types";
 import { DetalleProyectoModal } from "@/components/DetalleProyectoModal";
@@ -18,17 +18,33 @@ export function CollapsibleProjectCard({
   modo = "panel",
   rolUsuario = null,
   usuarioId = null,
+  resaltada = false,
+  onClickTarjeta,
 }: {
   proyecto: ProyectoConDetalle;
   modo?: "panel" | "mis-tareas";
   rolUsuario?: string | null;
   usuarioId?: string | null;
+  // Resultado del buscador de /proyectos: mientras es true, la
+  // tarjeta queda abierta y con un borde/resplandor destacado hasta
+  // que el usuario haga clic en ella (onClickTarjeta la apaga).
+  resaltada?: boolean;
+  onClickTarjeta?: () => void;
 }) {
   const [abierta, setAbierta] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const elementoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (resaltada) {
+      setAbierta(true);
+      elementoRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [resaltada]);
 
   const puedeVerDetalle =
-    modo === "mis-tareas" || (rolUsuario !== null && ROLES_GESTION.includes(rolUsuario));
+    modo === "mis-tareas" ||
+    (rolUsuario !== null && (ROLES_GESTION.includes(rolUsuario) || rolUsuario === "visualizador"));
 
   const cerradoAnticipado = proyecto.finalizado && proyecto.motivo_cierre;
   const colores = COLORES_FASE[proyecto.fase_orden] ?? COLORES_FASE[1]!;
@@ -57,8 +73,17 @@ export function CollapsibleProjectCard({
 
   return (
     <div
+      ref={elementoRef}
       className="rounded-xl border mb-2.5 overflow-hidden transition-all"
-      style={{ borderColor: bordeTarjeta, background: fondoTarjeta, boxShadow: "var(--shadow-card)" }}
+      style={{
+        borderColor: resaltada ? "#3B82F6" : bordeTarjeta,
+        borderWidth: resaltada ? 2 : 1,
+        background: fondoTarjeta,
+        boxShadow: resaltada ? "0 0 0 4px rgba(59, 130, 246, 0.25), 0 0 16px rgba(59, 130, 246, 0.45)" : "var(--shadow-card)",
+      }}
+      onClickCapture={() => {
+        if (resaltada) onClickTarjeta?.();
+      }}
     >
       <button
         onClick={() => setAbierta((v) => !v)}

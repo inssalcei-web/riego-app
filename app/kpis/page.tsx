@@ -27,6 +27,13 @@ function aNumero(valor: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+function formatoDuracion(segundos: number): string {
+  const horas = Math.floor(segundos / 3600);
+  const minutos = Math.round((segundos % 3600) / 60);
+  if (horas === 0) return `${minutos} min`;
+  return `${horas} h ${minutos} min`;
+}
+
 function Tarjeta({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-lg p-3" style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-card)" }}>
@@ -44,6 +51,8 @@ export default async function KpisPage() {
 
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
+  // El rol de solo lectura no tiene acceso a KPIs — solo tablero y detalle.
+  if (usuario.rol_id === "visualizador") redirect("/proyectos");
 
   const [
     proyectosActivos,
@@ -74,6 +83,23 @@ export default async function KpisPage() {
     supabase.from("v_kpi_duracion_proyectos").select("*"),
     supabase.from("proyecto_documentos_legales").select("documento_id, documentos_legales_catalogo(nombre)"),
   ]);
+
+  // ---------- Tiempo en la app, por usuario ----------
+  const { data: sesionesUsuario } = await supabase
+    .from("sesiones_usuario")
+    .select("usuario_id, duracion_segundos, usuarios(nombre)");
+
+  const porUsuarioSesiones = new Map<string, { total: number; n: number }>();
+  (sesionesUsuario ?? []).forEach((s: any) => {
+    const nombre = s.usuarios?.nombre ?? "Sin asignar";
+    const actual = porUsuarioSesiones.get(nombre) ?? { total: 0, n: 0 };
+    actual.total += s.duracion_segundos ?? 0;
+    actual.n += 1;
+    porUsuarioSesiones.set(nombre, actual);
+  });
+  const tiempoEnLaAppPorUsuario = Array.from(porUsuarioSesiones.entries())
+    .map(([nombre, v]) => ({ nombre, promedioSegundos: v.n > 0 ? v.total / v.n : 0, totalSegundos: v.total, sesiones: v.n }))
+    .sort((a, b) => b.totalSegundos - a.totalSegundos);
 
   // ---------- 1, 3: tiempo promedio por etapa + cuello de botella ----------
   const porEtapa = new Map<string, { nombre: string; orden: number; total: number; n: number }>();
@@ -268,6 +294,39 @@ export default async function KpisPage() {
               </div>
             ))}
           </Tarjeta>
+
+          <p className="text-sm mb-1.5 mt-4" style={{ color: "var(--text-secondary)" }}>Tiempo en la app, por usuario</p>
+          <Tarjeta>
+            {tiempoEnLaAppPorUsuario.length === 0 ? (
+              <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
+                Todavía no hay datos de sesiones registrados.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ color: "var(--text-secondary)" }}>
+                      <th className="text-left font-normal pb-1.5">Usuario</th>
+                      <th className="text-right font-normal pb-1.5">Promedio por conexión</th>
+                      <th className="text-right font-normal pb-1.5">Total histórico</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tiempoEnLaAppPorUsuario.map((u) => (
+                      <tr key={u.nombre} className="border-t" style={{ borderColor: "var(--border-default)" }}>
+                        <td className="py-1.5">{u.nombre}</td>
+                        <td className="py-1.5 text-right">{formatoDuracion(u.promedioSegundos)}</td>
+                        <td className="py-1.5 text-right">{formatoDuracion(u.totalSegundos)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Tarjeta>
+          <p className="text-sm mt-1.5" style={{ color: "var(--text-secondary)" }}>
+            El total histórico empieza a contar desde que se activó este seguimiento — no incluye uso anterior.
+          </p>
         </section>
 
         {/* Volumen */}

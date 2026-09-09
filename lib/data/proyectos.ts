@@ -174,8 +174,9 @@ export async function obtenerProyectosActivos(
   return enriquecerProyectos(supabase, activos);
 }
 
-// Proyectos que llevan 61 días o más sin moverse de etapa, o que
-// fueron archivados manualmente por Administrador o Gerente general.
+// Proyectos que llevan DIAS_PARA_ARCHIVAR días o más sin moverse de
+// etapa, o que fueron archivados manualmente por Administrador o
+// Gerente general.
 export async function obtenerProyectosArchivados(
   supabase: SupabaseClient
 ): Promise<ProyectoConDetalle[]> {

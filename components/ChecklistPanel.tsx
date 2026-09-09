@@ -30,25 +30,64 @@ export function ChecklistPanel({
     }
 
     const nuevoValor = !item.completado;
+    const idAntesDeTocar = item.instancia_id;
 
     setItems((prev) =>
-      prev.map((i) => (i.instancia_id === item.instancia_id ? { ...i, completado: nuevoValor } : i))
+      prev.map((i) => (i.id === item.id ? { ...i, completado: nuevoValor } : i))
     );
 
-    const { error } = await supabase
-      .from("checklist_instancia")
-      .update({
-        completado: nuevoValor,
-        completado_en: nuevoValor ? new Date().toISOString() : null,
-        completado_por: nuevoValor ? usuarioId : null,
-      })
-      .eq("id", item.instancia_id);
-
-    if (error) {
+    function revertir() {
       setItems((prev) =>
-        prev.map((i) => (i.instancia_id === item.instancia_id ? { ...i, completado: !nuevoValor } : i))
+        prev.map((i) => (i.id === item.id ? { ...i, completado: !nuevoValor } : i))
       );
     }
+
+    const cambios = {
+      completado: nuevoValor,
+      completado_en: nuevoValor ? new Date().toISOString() : null,
+      completado_por: nuevoValor ? usuarioId : null,
+    };
+
+    // Si ya existe la fila, se actualiza. Pedimos .select() a
+    // propósito: un update contra un id que no coincide con
+    // ninguna fila NO devuelve error en Supabase, solo un arreglo
+    // vacío — sin este chequeo, ese caso quedaba silenciosamente
+    // sin guardar aunque la UI mostrara el check marcado.
+    if (idAntesDeTocar) {
+      const { data, error } = await supabase
+        .from("checklist_instancia")
+        .update(cambios)
+        .eq("id", idAntesDeTocar)
+        .select("id");
+
+      if (!error && data && data.length > 0) return;
+      if (error) {
+        revertir();
+        return;
+      }
+    }
+
+    // No había fila (o el update no encontró ninguna): la creamos
+    // ahora. Esto es lo que hace que el checklist se autorepare en
+    // vez de quedar marcado solo en pantalla sin guardarse.
+    const { data: creada, error: errorInsert } = await supabase
+      .from("checklist_instancia")
+      .insert({
+        proyecto_id: proyectoId,
+        item_definicion_id: item.id,
+        ...cambios,
+      })
+      .select("id")
+      .single();
+
+    if (errorInsert || !creada) {
+      revertir();
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, instancia_id: creada.id } : i))
+    );
   }
 
   async function completarEtapa() {
@@ -83,7 +122,7 @@ export function ChecklistPanel({
           const esDeOtraPersona = item.usuario_asignado_id && item.usuario_asignado_id !== usuarioId;
           return (
             <button
-              key={item.instancia_id}
+              key={item.id}
               onClick={() => toggleItem(item)}
               disabled={!!esDeOtraPersona}
               className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left"

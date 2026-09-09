@@ -24,6 +24,9 @@ export default async function DetalleProyectoPage({
 
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
+  // El rol de solo lectura no gestiona etapas — ve el detalle desde
+  // el modal de /proyectos, no desde esta pantalla de acción.
+  if (usuario.rol_id === "visualizador") redirect("/proyectos");
 
   const { data: proyecto } = await supabase
     .from("proyectos")
@@ -147,7 +150,7 @@ async function ChecklistPanelServerWrapper({
 }) {
   const supabase = await createClient();
 
-  const [{ data: itemsDefinicion }, { data: instancias }, { data: usuarios }] = await Promise.all([
+  const [{ data: itemsDefinicion }, { data: instanciasExistentes }, { data: usuarios }] = await Promise.all([
     supabase.from("checklist_items_definicion").select("*").eq("etapa_id", etapaId).order("orden"),
     supabase.from("checklist_instancia").select("*").eq("proyecto_id", proyectoId),
     supabase.from("usuarios").select("id, nombre"),
@@ -155,8 +158,26 @@ async function ChecklistPanelServerWrapper({
 
   const usuariosPorId = new Map((usuarios ?? []).map((u: any) => [u.id, u.nombre]));
 
+  // Auto-reparación: a algunos proyectos les falta la fila de
+  // checklist_instancia para algún ítem (por ejemplo, ítems
+  // agregados en una migración posterior a la creación del
+  // proyecto). Sin esta fila, el checkbox se veía marcado en
+  // pantalla pero no se guardaba nada — creamos acá lo que falte
+  // antes de mostrar el checklist, para que quede consistente.
+  let instancias = instanciasExistentes ?? [];
+  const faltantes = (itemsDefinicion ?? []).filter(
+    (def) => !instancias.some((i) => i.item_definicion_id === def.id)
+  );
+  if (faltantes.length > 0) {
+    const { data: creadas } = await supabase
+      .from("checklist_instancia")
+      .insert(faltantes.map((def) => ({ proyecto_id: proyectoId, item_definicion_id: def.id, completado: false })))
+      .select("*");
+    instancias = [...instancias, ...(creadas ?? [])];
+  }
+
   const items: ChecklistItemConEstado[] = (itemsDefinicion ?? []).map((def) => {
-    const instancia = instancias?.find((i) => i.item_definicion_id === def.id);
+    const instancia = instancias.find((i) => i.item_definicion_id === def.id);
     return {
       ...def,
       instancia_id: instancia?.id ?? "",

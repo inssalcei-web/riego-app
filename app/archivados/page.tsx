@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { obtenerProyectosArchivados, obtenerUsuarioActual } from "@/lib/data/proyectos";
+import { obtenerProyectosArchivados, obtenerUsuarioActual, DIAS_PARA_ARCHIVAR } from "@/lib/data/proyectos";
 import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
 import { NavBar } from "@/components/NavBar";
 
@@ -22,7 +22,7 @@ export default async function ArchivadosPage() {
           Proyectos archivados <span style={{ color: "var(--text-secondary)" }}>({proyectos.length})</span>
         </p>
         <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-          Proyectos con 61 días o más sin moverse de etapa, o archivados manualmente. Reaparecen
+          Proyectos con {DIAS_PARA_ARCHIVAR} días o más sin moverse de etapa, o archivados manualmente. Reaparecen
           solos en el panel principal apenas tengan un movimiento real.
         </p>
 

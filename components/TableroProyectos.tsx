@@ -1,0 +1,187 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ProyectoConDetalle, ROLES_CREAR_PROYECTO } from "@/lib/types";
+import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
+import { RetomarProyectoCard } from "@/components/RetomarProyectoCard";
+
+interface FaseSimple {
+  id: string;
+  orden: number;
+  nombre: string;
+}
+
+interface ProyectoPendienteRetomar {
+  id: string;
+  codigo_proyecto: string;
+  nombre_agricultor: string;
+}
+
+function normalizar(texto: string) {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // quita tildes tras la normalización NFD
+    .toLowerCase()
+    .trim();
+}
+
+export function TableroProyectos({
+  fases,
+  proyectosActivos,
+  proyectosTerminados,
+  proyectosPendientesRetomar,
+  usuario,
+}: {
+  fases: FaseSimple[];
+  proyectosActivos: ProyectoConDetalle[];
+  proyectosTerminados: ProyectoConDetalle[];
+  proyectosPendientesRetomar: ProyectoPendienteRetomar[];
+  usuario: { id: string; rol_id: string } | null;
+}) {
+  const [busqueda, setBusqueda] = useState("");
+  const [idsResaltados, setIdsResaltados] = useState<Set<string>>(new Set());
+
+  const primeraFase = fases[0];
+
+  const resultadoBusqueda = useMemo(() => {
+    const q = normalizar(busqueda);
+    if (q.length < 2) return null;
+
+    const todos = [...proyectosActivos, ...proyectosTerminados];
+    const coincidencias = todos.filter(
+      (p) =>
+        normalizar(p.codigo_proyecto ?? "").includes(q) ||
+        normalizar(p.nombre_agricultor ?? "").includes(q)
+    );
+    return coincidencias;
+  }, [busqueda, proyectosActivos, proyectosTerminados]);
+
+  // Cada vez que cambia el resultado de una búsqueda nueva, se
+  // resaltan sus coincidencias (hasta que el usuario haga clic en
+  // alguna, momento en el que se apaga solo esa tarjeta).
+  useEffect(() => {
+    if (resultadoBusqueda) {
+      setIdsResaltados(new Set(resultadoBusqueda.map((p) => p.id)));
+    } else {
+      setIdsResaltados(new Set());
+    }
+  }, [resultadoBusqueda]);
+
+  function quitarResaltado(id: string) {
+    setIdsResaltados((prev) => {
+      const copia = new Set(prev);
+      copia.delete(id);
+      return copia;
+    });
+  }
+
+  return (
+    <>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2.5 sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por código o agricultor..."
+            className="w-full h-9 pl-8 pr-3 rounded-md border text-base"
+            style={{ borderColor: "var(--border-default)" }}
+          />
+          <span
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            🔍
+          </span>
+        </div>
+
+        {usuario && ROLES_CREAR_PROYECTO.includes(usuario.rol_id) && (
+          <Link
+            href="/proyectos/nuevo"
+            className="text-base px-4 py-2 rounded-lg text-white font-medium text-center"
+            style={{ background: "#3B82F6" }}
+          >
+            + Crear nuevo proyecto
+          </Link>
+        )}
+      </div>
+
+      {resultadoBusqueda && (
+        <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+          {resultadoBusqueda.length === 0
+            ? "No se encontraron proyectos con ese código o agricultor."
+            : `${resultadoBusqueda.length} proyecto(s) encontrado(s), resaltado(s) abajo.`}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {fases.map((fase) => {
+          const proyectosDeLaFase = proyectosActivos.filter((p) => p.fase_id === fase.id);
+          const esPrimeraFase = primeraFase && fase.id === primeraFase.id;
+
+          return (
+            <div key={fase.id}>
+              <p className="text-sm font-medium mb-2.5" style={{ color: "var(--text-secondary)" }}>
+                {fase.orden} · {fase.nombre}
+                <span className="ml-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+                  ({proyectosDeLaFase.length})
+                </span>
+              </p>
+
+              {esPrimeraFase &&
+                proyectosPendientesRetomar.map((p) => (
+                  <RetomarProyectoCard
+                    key={p.id}
+                    proyectoId={p.id}
+                    codigoProyecto={p.codigo_proyecto ?? "Sin código"}
+                    nombreAgricultor={p.nombre_agricultor ?? "Agricultor sin definir"}
+                    usuarioId={usuario!.id}
+                  />
+                ))}
+
+              {proyectosDeLaFase.length === 0 && proyectosPendientesRetomar.length === 0 && (
+                <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
+                  Sin proyectos
+                </p>
+              )}
+              {proyectosDeLaFase.map((p) => (
+                <CollapsibleProjectCard
+                  key={p.id}
+                  proyecto={p}
+                  rolUsuario={usuario?.rol_id ?? null}
+                  usuarioId={usuario?.id ?? null}
+                  resaltada={idsResaltados.has(p.id)}
+                  onClickTarjeta={() => quitarResaltado(p.id)}
+                />
+              ))}
+            </div>
+          );
+        })}
+
+        <div>
+          <p className="text-sm font-medium mb-2.5" style={{ color: "var(--status-on-track-text)" }}>
+            ✓ Proyectos terminados
+            <span className="ml-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+              ({proyectosTerminados.length})
+            </span>
+          </p>
+          {proyectosTerminados.length === 0 && (
+            <p className="text-sm italic" style={{ color: "var(--text-secondary)" }}>
+              Sin proyectos
+            </p>
+          )}
+          {proyectosTerminados.map((p) => (
+            <CollapsibleProjectCard
+              key={p.id}
+              proyecto={p}
+              rolUsuario={usuario?.rol_id ?? null}
+              usuarioId={usuario?.id ?? null}
+              resaltada={idsResaltados.has(p.id)}
+              onClickTarjeta={() => quitarResaltado(p.id)}
+            />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -88,6 +89,14 @@ export default function LoginPage() {
         >
           {cargando ? "Ingresando..." : "Ingresar"}
         </button>
+
+        <Link
+          href="/informe-agricultor"
+          className="block text-center text-sm mt-4"
+          style={{ color: "#3B82F6" }}
+        >
+          ¿Eres agricultor? Ingresa aquí para revisar el estado de tu proyecto
+        </Link>
       </form>
     </main>
   );

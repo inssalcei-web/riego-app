@@ -40,6 +40,26 @@ Deno.serve(async (req: Request) => {
     return jsonError("Solo el Gerente general o el Administrador pueden crear proyectos", 403);
   }
 
+  // Bloqueo de código de proyecto duplicado: se compara sin
+  // distinguir mayúsculas/minúsculas contra CUALQUIER proyecto ya
+  // existente (activo, finalizado o cerrado anticipadamente) — un
+  // código usado una vez queda reservado para siempre. Esto es
+  // además de la restricción única a nivel de base de datos
+  // (migración 024): esta consulta solo existe para poder devolver
+  // un mensaje de error claro en vez de un error genérico de SQL.
+  const { data: existente } = await supabase
+    .from("proyectos")
+    .select("id, codigo_proyecto, nombre_agricultor")
+    .ilike("codigo_proyecto", codigo_proyecto.trim())
+    .maybeSingle();
+
+  if (existente) {
+    return jsonError(
+      `Ya existe un proyecto con el código "${existente.codigo_proyecto}" (agricultor: ${existente.nombre_agricultor ?? "—"}). Usa un código distinto.`,
+      409
+    );
+  }
+
   const { data: etapa1 } = await supabase
     .from("etapas_definicion")
     .select("*")
@@ -72,6 +92,9 @@ Deno.serve(async (req: Request) => {
     .single();
 
   if (errCrear || !proyecto) {
+    if (errCrear?.code === "23505") {
+      return jsonError(`Ya existe un proyecto con el código "${codigo_proyecto.trim()}". Usa un código distinto.`, 409);
+    }
     return jsonError(`No se pudo crear el proyecto: ${errCrear?.message ?? "sin datos"}`, 500);
   }
 
