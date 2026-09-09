@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { ProyectoConDetalle, ROLES_CREAR_PROYECTO } from "@/lib/types";
 import { CollapsibleProjectCard } from "@/components/CollapsibleProjectCard";
@@ -40,12 +40,13 @@ export function TableroProyectos({
   usuario: { id: string; rol_id: string } | null;
 }) {
   const [busqueda, setBusqueda] = useState("");
+  const [terminoBuscado, setTerminoBuscado] = useState("");
   const [idsResaltados, setIdsResaltados] = useState<Set<string>>(new Set());
 
   const primeraFase = fases[0];
 
   const resultadoBusqueda = useMemo(() => {
-    const q = normalizar(busqueda);
+    const q = normalizar(terminoBuscado);
     if (q.length < 2) return null;
 
     const todos = [...proyectosActivos, ...proyectosTerminados];
@@ -55,7 +56,30 @@ export function TableroProyectos({
         normalizar(p.nombre_agricultor ?? "").includes(q)
     );
     return coincidencias;
-  }, [busqueda, proyectosActivos, proyectosTerminados]);
+  }, [terminoBuscado, proyectosActivos, proyectosTerminados]);
+
+  function buscar() {
+    setTerminoBuscado(busqueda);
+  }
+
+  function onKeyDownBusqueda(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      buscar();
+    }
+    // Si el usuario borra todo el texto y presiona Enter (o borra y
+    // sigue escribiendo), se apaga la búsqueda activa automáticamente
+    // más abajo (ver el useEffect que vigila `busqueda`).
+  }
+
+  // Si el usuario borra el contenido del campo de búsqueda, se
+  // desactiva la búsqueda activa (y por lo tanto el resaltado),
+  // sin necesidad de volver a presionar Enter.
+  useEffect(() => {
+    if (busqueda.trim().length === 0 && terminoBuscado.length > 0) {
+      setTerminoBuscado("");
+    }
+  }, [busqueda, terminoBuscado]);
 
   // Cada vez que cambia el resultado de una búsqueda nueva, se
   // resaltan sus coincidencias (hasta que el usuario haga clic en
@@ -83,16 +107,20 @@ export function TableroProyectos({
           <input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por código o agricultor..."
+            onKeyDown={onKeyDownBusqueda}
+            placeholder="Buscar por código o agricultor... (Enter para buscar)"
             className="w-full h-9 pl-8 pr-3 rounded-md border text-base"
             style={{ borderColor: "var(--border-default)" }}
           />
-          <span
+          <button
+            type="button"
+            onClick={buscar}
+            aria-label="Buscar"
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm"
             style={{ color: "var(--text-secondary)" }}
           >
             🔍
-          </span>
+          </button>
         </div>
 
         {usuario && ROLES_CREAR_PROYECTO.includes(usuario.rol_id) && (
