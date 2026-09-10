@@ -7,10 +7,20 @@ interface ProyectoEncontrado {
   id: string;
   codigo_proyecto: string | null;
   nombre_agricultor: string | null;
+  rut_agricultor: string;
+}
+
+// Distingue si lo que escribió la persona parece un RUT (mayormente
+// dígitos, con o sin puntos/guión, terminado en dígito o "K") o un
+// nombre. Así el mismo campo sirve para ambos sin que el agricultor
+// tenga que elegir nada.
+function pareceRut(texto: string) {
+  const limpio = texto.replace(/[^0-9kK]/g, "");
+  return limpio.length >= 7 && limpio.length <= 9 && /^[0-9]+[0-9kK]$/i.test(limpio);
 }
 
 export default function InformeAgricultorPage() {
-  const [rut, setRut] = useState("");
+  const [valor, setValor] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultados, setResultados] = useState<ProyectoEncontrado[] | null>(null);
@@ -22,7 +32,10 @@ export default function InformeAgricultorPage() {
     setBuscando(true);
 
     try {
-      const res = await fetch(`/api/agricultor/buscar?rut=${encodeURIComponent(rut)}`);
+      const parametro = pareceRut(valor)
+        ? `rut=${encodeURIComponent(valor)}`
+        : `nombre=${encodeURIComponent(valor)}`;
+      const res = await fetch(`/api/agricultor/buscar?${parametro}`);
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
@@ -53,13 +66,13 @@ export default function InformeAgricultorPage() {
 
         <form onSubmit={handleSubmit}>
           <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
-            RUT del agricultor
+            RUT o nombre completo del agricultor
           </label>
           <input
             required
-            value={rut}
-            onChange={(e) => setRut(e.target.value)}
-            placeholder="12.345.678-9"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            placeholder="12.345.678-9 o Juan Pérez"
             className="w-full h-9 px-3 mb-3 rounded-md border text-base"
             style={{ borderColor: "var(--border-default)" }}
           />
@@ -85,12 +98,12 @@ export default function InformeAgricultorPage() {
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               {resultados.length === 1
                 ? "Encontramos tu proyecto:"
-                : `Encontramos ${resultados.length} proyectos asociados a ese RUT:`}
+                : `Encontramos ${resultados.length} proyectos:`}
             </p>
             {resultados.map((p) => (
               <a
                 key={p.id}
-                href={`/api/agricultor/informe-pdf?id=${p.id}&rut=${encodeURIComponent(rut)}`}
+                href={`/api/agricultor/informe-pdf?id=${p.id}&rut=${encodeURIComponent(p.rut_agricultor)}`}
                 className="flex flex-col px-3 py-2 rounded-lg border text-sm"
                 style={{ borderColor: "var(--border-default)", background: "var(--surface-page)" }}
               >

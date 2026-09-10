@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   obtenerProyectosActivos,
   obtenerProyectosTerminados,
+  obtenerProyectosArchivados,
   obtenerUsuarioActual,
   obtenerFasesOrdenadas,
   obtenerProyectosPendientesRetomar,
@@ -21,12 +22,14 @@ export default async function ProyectosPage() {
 
   const puedeVerRetomar = usuario ? ROLES_GESTION.includes(usuario.rol_id) : false;
 
-  const [proyectosActivos, proyectosTerminados, fases, proyectosPendientesRetomar] = await Promise.all([
-    obtenerProyectosActivos(supabase),
-    obtenerProyectosTerminados(supabase),
-    obtenerFasesOrdenadas(supabase),
-    puedeVerRetomar ? obtenerProyectosPendientesRetomar(supabase) : Promise.resolve([]),
-  ]);
+  const [proyectosActivos, proyectosTerminados, proyectosArchivados, fases, proyectosPendientesRetomar] =
+    await Promise.all([
+      obtenerProyectosActivos(supabase),
+      obtenerProyectosTerminados(supabase),
+      obtenerProyectosArchivados(supabase),
+      obtenerFasesOrdenadas(supabase),
+      puedeVerRetomar ? obtenerProyectosPendientesRetomar(supabase) : Promise.resolve([]),
+    ]);
 
   return (
     <div className="min-h-screen">
@@ -36,6 +39,7 @@ export default async function ProyectosPage() {
           fases={fases}
           proyectosActivos={proyectosActivos}
           proyectosTerminados={proyectosTerminados}
+          proyectosArchivados={proyectosArchivados}
           proyectosPendientesRetomar={proyectosPendientesRetomar}
           usuario={usuario ? { id: usuario.id, rol_id: usuario.rol_id } : null}
         />

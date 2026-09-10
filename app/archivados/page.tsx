@@ -6,12 +6,20 @@ import { NavBar } from "@/components/NavBar";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArchivadosPage() {
+export default async function ArchivadosPage({
+  searchParams,
+}: {
+  // Viene del buscador de /proyectos: cuando una coincidencia es un
+  // proyecto archivado, se navega acá con ?resaltar=<id> para
+  // marcarlo automáticamente, igual que hace el tablero principal.
+  searchParams: Promise<{ resaltar?: string }>;
+}) {
   const supabase = await createClient();
 
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
 
+  const { resaltar } = await searchParams;
   const proyectos = await obtenerProyectosArchivados(supabase);
 
   return (
@@ -34,7 +42,12 @@ export default async function ArchivadosPage() {
 
         {proyectos.map((p) => (
           <div key={p.id}>
-            <CollapsibleProjectCard proyecto={p} rolUsuario={usuario?.rol_id ?? null} usuarioId={usuario?.id ?? null} />
+            <CollapsibleProjectCard
+              proyecto={p}
+              rolUsuario={usuario?.rol_id ?? null}
+              usuarioId={usuario?.id ?? null}
+              resaltada={p.id === resaltar}
+            />
             <p className="text-sm -mt-2 mb-3 px-1" style={{ color: "var(--text-secondary)" }}>
               {p.archivado_manual
                 ? `Archivado manualmente${p.archivado_motivo ? ` — ${p.archivado_motivo}` : ""}`

@@ -30,12 +30,14 @@ export function TableroProyectos({
   fases,
   proyectosActivos,
   proyectosTerminados,
+  proyectosArchivados,
   proyectosPendientesRetomar,
   usuario,
 }: {
   fases: FaseSimple[];
   proyectosActivos: ProyectoConDetalle[];
   proyectosTerminados: ProyectoConDetalle[];
+  proyectosArchivados: ProyectoConDetalle[];
   proyectosPendientesRetomar: ProyectoPendienteRetomar[];
   usuario: { id: string; rol_id: string } | null;
 }) {
@@ -45,18 +47,23 @@ export function TableroProyectos({
 
   const primeraFase = fases[0];
 
+  // El código de proyecto se busca por coincidencia parcial (no hay
+  // ambigüedad posible), pero el nombre de agricultor se busca por
+  // coincidencia EXACTA (normalizada) — muchos proyectos comparten
+  // las primeras palabras del nombre (ej. "Canal ..."), así que una
+  // búsqueda parcial por nombre devolvía demasiados resultados.
   const resultadoBusqueda = useMemo(() => {
     const q = normalizar(terminoBuscado);
     if (q.length < 2) return null;
 
-    const todos = [...proyectosActivos, ...proyectosTerminados];
-    const coincidencias = todos.filter(
-      (p) =>
-        normalizar(p.codigo_proyecto ?? "").includes(q) ||
-        normalizar(p.nombre_agricultor ?? "").includes(q)
-    );
-    return coincidencias;
-  }, [terminoBuscado, proyectosActivos, proyectosTerminados]);
+    const coincide = (p: ProyectoConDetalle) =>
+      normalizar(p.codigo_proyecto ?? "").includes(q) || normalizar(p.nombre_agricultor ?? "") === q;
+
+    return {
+      activosTerminados: [...proyectosActivos, ...proyectosTerminados].filter(coincide),
+      archivados: proyectosArchivados.filter(coincide),
+    };
+  }, [terminoBuscado, proyectosActivos, proyectosTerminados, proyectosArchivados]);
 
   function buscar() {
     setTerminoBuscado(busqueda);
@@ -86,7 +93,7 @@ export function TableroProyectos({
   // alguna, momento en el que se apaga solo esa tarjeta).
   useEffect(() => {
     if (resultadoBusqueda) {
-      setIdsResaltados(new Set(resultadoBusqueda.map((p) => p.id)));
+      setIdsResaltados(new Set(resultadoBusqueda.activosTerminados.map((p) => p.id)));
     } else {
       setIdsResaltados(new Set());
     }
@@ -135,11 +142,33 @@ export function TableroProyectos({
       </div>
 
       {resultadoBusqueda && (
-        <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-          {resultadoBusqueda.length === 0
-            ? "No se encontraron proyectos con ese código o agricultor."
-            : `${resultadoBusqueda.length} proyecto(s) encontrado(s), resaltado(s) abajo.`}
-        </p>
+        <div className="mb-3">
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {resultadoBusqueda.activosTerminados.length === 0 && resultadoBusqueda.archivados.length === 0
+              ? "No se encontraron proyectos con ese código de proyecto, o con ese nombre completo exacto de agricultor."
+              : `${resultadoBusqueda.activosTerminados.length + resultadoBusqueda.archivados.length} proyecto(s) encontrado(s).`}
+          </p>
+
+          {resultadoBusqueda.archivados.length > 0 && (
+            <div className="mt-1.5 flex flex-col gap-1.5">
+              {resultadoBusqueda.archivados.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/archivados?resaltar=${p.id}`}
+                  className="flex items-center justify-between text-sm px-2.5 py-1.5 rounded-md border"
+                  style={{ borderColor: "var(--border-default)", background: "var(--surface-page)" }}
+                >
+                  <span>
+                    <span className="font-medium">{p.codigo_proyecto ?? "Sin código"}</span>
+                    {" — "}
+                    <span style={{ color: "var(--text-secondary)" }}>{p.nombre_agricultor ?? "—"}</span>
+                  </span>
+                  <span style={{ color: "#3B82F6" }}>Archivado · ver →</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
