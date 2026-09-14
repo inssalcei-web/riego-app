@@ -20,7 +20,14 @@ export default async function ArchivadosPage({
   if (!usuario) redirect("/login");
 
   const { resaltar } = await searchParams;
-  const proyectos = await obtenerProyectosArchivados(supabase);
+  const proyectosSinOrdenar = await obtenerProyectosArchivados(supabase);
+
+  // Los archivados automáticamente (por días sin moverse de etapa)
+  // van siempre primero; los archivados manualmente quedan más
+  // abajo. Dentro de cada grupo se mantiene el orden que ya traían.
+  const proyectos = [...proyectosSinOrdenar].sort(
+    (a, b) => Number(!!a.archivado_manual) - Number(!!b.archivado_manual)
+  );
 
   return (
     <div className="min-h-screen">

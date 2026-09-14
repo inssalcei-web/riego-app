@@ -2,7 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { ProyectoConDetalle, ColorSemaforo } from "@/lib/types";
 
 const CAMPOS_MONTOS = ["monto_formulacion", "monto_construccion", "monto_aporte_propio", "monto_total_proyecto"];
-export const DIAS_PARA_ARCHIVAR = 31;
+export const DIAS_PARA_ARCHIVAR = 70;
 
 export function montosCompletos(datosFormulario: Record<string, any> | null | undefined): boolean {
   const datos = datosFormulario ?? {};
