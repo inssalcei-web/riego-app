@@ -11,6 +11,7 @@ const TABS = [
   { href: "/mis-tareas", label: "Mis tareas" },
   { href: "/archivados", label: "Archivados" },
   { href: "/kpis", label: "KPIs e informes" },
+  { href: "/bonificacion", label: "Bonificación Profesionales" },
 ];
 
 const CLAVE_SESION = "riego-app-sesion-id";
@@ -108,8 +109,12 @@ export function NavBar() {
   }
 
   // El rol "visualizador" (solo lectura) ve el tablero de proyectos
-  // y el detalle de cada uno, pero no el panel de KPIs.
-  const tabsVisibles = rol === "visualizador" ? TABS.filter((t) => t.href !== "/kpis") : TABS;
+  // y el detalle de cada uno, pero no el panel de KPIs ni la
+  // pestaña de bonificación de profesionales.
+  const tabsVisibles =
+    rol === "visualizador"
+      ? TABS.filter((t) => t.href !== "/kpis" && t.href !== "/bonificacion")
+      : TABS;
 
   return (
     <header
