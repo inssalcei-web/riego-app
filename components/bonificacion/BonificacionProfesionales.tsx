@@ -11,7 +11,9 @@ import {
   type BonifPago,
   type BonifPrograma,
   type BonifProyecto,
+  type Profesional,
   type ProyectoApp,
+  PROFESIONALES,
 } from "@/lib/bonificacion";
 import { BonificacionResumen } from "./BonificacionResumen";
 import { BonificacionProyectos } from "./BonificacionProyectos";
@@ -34,7 +36,12 @@ export function BonificacionProfesionales({
   pagosIniciales,
   configInicial,
   proyectosApp,
+  soloLectura = false,
+  visibles = PROFESIONALES,
 }: {
+  // soloLectura: vista de un profesional (solo ve lo suyo, sin editar).
+  soloLectura?: boolean;
+  visibles?: readonly Profesional[];
   usuarioId: string;
   programasIniciales: BonifPrograma[];
   proyectosIniciales: BonifProyecto[];
@@ -232,6 +239,8 @@ export function BonificacionProfesionales({
           proyectos={proyectos}
           pagos={pagos}
           onGuardarConfig={guardarConfig}
+          soloLectura={soloLectura}
+          visibles={visibles}
         />
       )}
       {seccion === "proyectos" && (
@@ -242,6 +251,8 @@ export function BonificacionProfesionales({
           onAgregar={agregarProyecto}
           onEditar={editarProyecto}
           onBorrar={borrarProyecto}
+          soloLectura={soloLectura}
+          visibles={visibles}
         />
       )}
       {seccion === "pagos" && (
@@ -250,6 +261,7 @@ export function BonificacionProfesionales({
           onAgregar={agregarPago}
           onEditar={editarPago}
           onBorrar={borrarPago}
+          soloLectura={soloLectura}
         />
       )}
       {seccion === "porcentajes" && (
@@ -258,6 +270,7 @@ export function BonificacionProfesionales({
           onAgregar={agregarPrograma}
           onEditar={editarPrograma}
           onBorrar={borrarPrograma}
+          soloLectura={soloLectura}
         />
       )}
     </div>

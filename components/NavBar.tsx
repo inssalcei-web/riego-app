@@ -27,6 +27,7 @@ export function NavBar() {
   const supabase = createClient();
   const [rol, setRol] = useState<string | null>(null);
   const [nombreUsuario, setNombreUsuario] = useState<string | null>(null);
+  const [esProfesionalBonif, setEsProfesionalBonif] = useState(false);
   const [ultimaConexionAnterior, setUltimaConexionAnterior] = useState<string | null>(null);
   const sesionIdRef = useRef<string | null>(null);
   const iniciadaEnRef = useRef<string | null>(null);
@@ -43,6 +44,13 @@ export function NavBar() {
       setRol(data?.rol_id ?? null);
       setNombreUsuario(data?.nombre ?? null);
       if (!data?.id) return;
+
+      // ¿Es uno de los profesionales de la bonificación? (la base de
+      // datos solo le devuelve su propio vínculo, si lo hay)
+      if (data.rol_id !== "gerente_general" && data.rol_id !== "administrador") {
+        const { data: panelBonif } = await supabase.rpc("bonif_mi_panel");
+        setEsProfesionalBonif(!!panelBonif);
+      }
 
       // "Última conexión": la sesión anterior a la que se está
       // iniciando ahora mismo (así se puede mostrar "estuviste acá
@@ -109,12 +117,16 @@ export function NavBar() {
   }
 
   // El rol "visualizador" (solo lectura) ve el tablero de proyectos
-  // y el detalle de cada uno, pero no el panel de KPIs ni la
-  // pestaña de bonificación de profesionales.
-  const tabsVisibles =
-    rol === "visualizador"
-      ? TABS.filter((t) => t.href !== "/kpis" && t.href !== "/bonificacion")
-      : TABS;
+  // y el detalle de cada uno, pero no el panel de KPIs.
+  // La pestaña de bonificación la ven gerente general y administrador,
+  // y los profesionales vinculados (que solo ven lo suyo). Para el
+  // resto se oculta; además la página y la base de datos la bloquean.
+  const GESTION_BONIF = ["gerente_general", "administrador"];
+  const tabsVisibles = TABS.filter((t) => {
+    if (t.href === "/kpis") return rol !== "visualizador";
+    if (t.href === "/bonificacion") return rol !== null && (GESTION_BONIF.includes(rol) || esProfesionalBonif);
+    return true;
+  });
 
   return (
     <header

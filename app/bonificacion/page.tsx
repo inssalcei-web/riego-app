@@ -7,9 +7,12 @@ import {
   aConfig,
   aPago,
   aPrograma,
+  aPanelPropio,
   aProyecto,
   type ProyectoApp,
 } from "@/lib/bonificacion";
+
+const ROLES_GESTION_BONIFICACION = ["gerente_general", "administrador"];
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +22,46 @@ export default async function BonificacionPage() {
   const usuario = await obtenerUsuarioActual(supabase);
   if (!usuario) redirect("/login");
 
-  // El rol de solo lectura no ve esta pestaña. Además de este
-  // redirect, la base de datos (RLS) le niega los datos igualmente.
-  if (usuario.rol_id === "visualizador") redirect("/proyectos");
+  // Gerente general y administrador gestionan todo. Cualquier otra
+  // persona solo entra si está vinculada a uno de los tres
+  // profesionales, y ve únicamente lo suyo en modo lectura. La base
+  // de datos aplica estas mismas reglas (RLS y bonif_mi_panel), no
+  // solo esta pantalla.
+  if (!ROLES_GESTION_BONIFICACION.includes(usuario.rol_id)) {
+    const { data: panelJson, error: errorPanel } = await supabase.rpc("bonif_mi_panel");
+    const panel = errorPanel ? null : aPanelPropio(panelJson);
+    if (!panel) redirect("/proyectos");
+
+    // Los porcentajes de todos los programas son visibles para los
+    // profesionales (transparencia); lo demás es solo lo suyo.
+    const { data: programasData } = await supabase
+      .from("bonif_programas")
+      .select("*")
+      .order("orden", { ascending: true });
+
+    return (
+      <div className="min-h-screen">
+        <NavBar />
+        <main className="p-4 sm:p-5 max-w-6xl mx-auto">
+          <p className="font-medium text-lg mb-1">Mi bonificación — {panel.profesional.nombre}</p>
+          <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+            Solo lectura. Aquí ves tu información (proyectos, bonos y pagos) y los porcentajes de
+            bonificación de cada programa.
+          </p>
+          <BonificacionProfesionales
+            soloLectura
+            visibles={[panel.profesional]}
+            usuarioId={usuario.id}
+            programasIniciales={(programasData ?? []).map(aPrograma)}
+            proyectosIniciales={panel.proyectos}
+            pagosIniciales={panel.pagos}
+            configInicial={panel.config}
+            proyectosApp={[]}
+          />
+        </main>
+      </div>
+    );
+  }
 
   const [programas, proyectos, pagos, config, proyectosApp] = await Promise.all([
     supabase.from("bonif_programas").select("*").order("orden", { ascending: true }),

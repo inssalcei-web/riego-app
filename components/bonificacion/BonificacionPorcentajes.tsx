@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PROFESIONALES, type BonifPrograma } from "@/lib/bonificacion";
+import { PROFESIONALES, formatoPct, type BonifPrograma } from "@/lib/bonificacion";
 import {
   BotonBorrar,
   CampoPorcentaje,
@@ -18,7 +18,9 @@ export function BonificacionPorcentajes({
   onAgregar,
   onEditar,
   onBorrar,
+  soloLectura = false,
 }: {
+  soloLectura?: boolean;
   programas: BonifPrograma[];
   onAgregar: (datos: Omit<BonifPrograma, "id" | "orden">) => Promise<boolean>;
   onEditar: (id: string, parche: Partial<BonifPrograma>) => void;
@@ -58,9 +60,9 @@ export function BonificacionPorcentajes({
     <div>
       <Tarjeta titulo="Porcentajes de bono por programa">
         <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-          Cada porcentaje se aplica sobre el monto total del proyecto. Los cambios que hagas aquí
-          solo afectan a los proyectos que registres después: los ya registrados conservan los
-          porcentajes con que se ingresaron.
+          {soloLectura
+            ? "Cada porcentaje se aplica sobre el monto total del proyecto. Estos son los porcentajes vigentes de cada programa; cada proyecto conserva los que tenía al momento de registrarse."
+            : "Cada porcentaje se aplica sobre el monto total del proyecto. Los cambios que hagas aquí solo afectan a los proyectos que registres después: los ya registrados conservan los porcentajes con que se ingresaron."}
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-base">
@@ -74,11 +76,24 @@ export function BonificacionPorcentajes({
                     {p.nombre}
                   </th>
                 ))}
-                <th style={ESTILO_TH}></th>
+                {!soloLectura && <th style={ESTILO_TH}></th>}
               </tr>
             </thead>
             <tbody>
-              {programas.map((pr) => (
+              {soloLectura &&
+                programas.map((pr) => (
+                  <tr key={pr.id}>
+                    <td className="py-2 px-2" style={ESTILO_TD}>
+                      {pr.nombre}
+                    </td>
+                    {PROFESIONALES.map((p) => (
+                      <td key={p.clave} className="py-2 px-2" style={ESTILO_TD}>
+                        {formatoPct(pr[`pct_${p.clave}` as const])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              {!soloLectura && programas.map((pr) => (
                 <tr key={pr.id}>
                   <td className="py-2 px-2" style={ESTILO_TD}>
                     <CampoTexto
@@ -105,6 +120,7 @@ export function BonificacionPorcentajes({
         </div>
       </Tarjeta>
 
+      {!soloLectura && (
       <Tarjeta titulo="Agregar programa">
         <form onSubmit={agregar} className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-[12rem]">
@@ -143,6 +159,7 @@ export function BonificacionPorcentajes({
           </button>
         </form>
       </Tarjeta>
+      )}
     </div>
   );
 }

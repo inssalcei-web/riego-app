@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   PROFESIONALES,
+  formatoFecha,
   formatoMoneda,
   formatoPct,
   hoyISO,
@@ -10,6 +11,7 @@ import {
   pctDe,
   type BonifPrograma,
   type BonifProyecto,
+  type Profesional,
   type ProyectoApp,
 } from "@/lib/bonificacion";
 import {
@@ -30,7 +32,11 @@ export function BonificacionProyectos({
   onAgregar,
   onEditar,
   onBorrar,
+  soloLectura = false,
+  visibles = PROFESIONALES,
 }: {
+  soloLectura?: boolean;
+  visibles?: readonly Profesional[];
   programas: BonifPrograma[];
   proyectos: BonifProyecto[];
   proyectosApp: ProyectoApp[];
@@ -118,6 +124,7 @@ export function BonificacionProyectos({
 
   return (
     <div>
+      {!soloLectura && (
       <Tarjeta titulo="Registrar proyecto adjudicado">
         <form onSubmit={registrar} className="flex flex-col gap-3">
           <div>
@@ -219,6 +226,7 @@ export function BonificacionProyectos({
           </div>
         </form>
       </Tarjeta>
+      )}
 
       <Tarjeta titulo={`Proyectos registrados (${proyectos.length})`}>
         {proyectos.length === 0 ? (
@@ -235,12 +243,12 @@ export function BonificacionProyectos({
                       {t}
                     </th>
                   ))}
-                  {PROFESIONALES.map((p) => (
+                  {visibles.map((p) => (
                     <th key={p.clave} className="text-right font-normal py-2 px-2 text-sm" style={ESTILO_TH}>
-                      {p.nombre}
+                      {visibles.length === 1 ? "Mi bono" : p.nombre}
                     </th>
                   ))}
-                  <th style={ESTILO_TH}></th>
+                  {!soloLectura && <th style={ESTILO_TH}></th>}
                 </tr>
               </thead>
               <tbody>
@@ -255,21 +263,29 @@ export function BonificacionProyectos({
                     <td className="py-2 px-2" style={ESTILO_TD}>
                       {p.programa}
                     </td>
-                    <td className="py-2 px-2" style={ESTILO_TD}>
-                      <CampoFecha
-                        valor={p.fecha_adjudicacion}
-                        onGuardar={(f) => onEditar(p.id, { fecha_adjudicacion: f })}
-                        className="w-36"
-                      />
+                    <td className="py-2 px-2 whitespace-nowrap" style={ESTILO_TD}>
+                      {soloLectura ? (
+                        formatoFecha(p.fecha_adjudicacion)
+                      ) : (
+                        <CampoFecha
+                          valor={p.fecha_adjudicacion}
+                          onGuardar={(f) => onEditar(p.id, { fecha_adjudicacion: f })}
+                          className="w-36"
+                        />
+                      )}
                     </td>
-                    <td className="py-2 px-2" style={ESTILO_TD}>
-                      <CampoNumero
-                        valor={p.monto_total}
-                        onGuardar={(n) => onEditar(p.id, { monto_total: n })}
-                        className="w-32"
-                      />
+                    <td className="py-2 px-2 whitespace-nowrap" style={ESTILO_TD}>
+                      {soloLectura ? (
+                        formatoMoneda(p.monto_total)
+                      ) : (
+                        <CampoNumero
+                          valor={p.monto_total}
+                          onGuardar={(n) => onEditar(p.id, { monto_total: n })}
+                          className="w-32"
+                        />
+                      )}
                     </td>
-                    {PROFESIONALES.map((prof) => {
+                    {visibles.map((prof) => {
                       const pct = pctDe(p, prof.clave);
                       return (
                         <td key={prof.clave} className="py-2 px-2 text-right whitespace-nowrap" style={ESTILO_TD}>
@@ -286,9 +302,11 @@ export function BonificacionProyectos({
                         </td>
                       );
                     })}
-                    <td className="py-2 px-2" style={ESTILO_TD}>
-                      <BotonBorrar onConfirmar={() => onBorrar(p.id)} />
-                    </td>
+                    {!soloLectura && (
+                      <td className="py-2 px-2" style={ESTILO_TD}>
+                        <BotonBorrar onConfirmar={() => onBorrar(p.id)} />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 <tr className="font-medium">
@@ -296,18 +314,21 @@ export function BonificacionProyectos({
                     TOTALES
                   </td>
                   <td className="py-2 px-2">{formatoMoneda(totales.monto)}</td>
-                  <td className="py-2 px-2 text-right">{formatoMoneda(totales.oliver)}</td>
-                  <td className="py-2 px-2 text-right">{formatoMoneda(totales.valentina)}</td>
-                  <td className="py-2 px-2 text-right">{formatoMoneda(totales.elizabeth)}</td>
-                  <td></td>
+                  {visibles.map((v) => (
+                    <td key={v.clave} className="py-2 px-2 text-right">
+                      {formatoMoneda(totales[v.clave])}
+                    </td>
+                  ))}
+                  {!soloLectura && <td></td>}
                 </tr>
               </tbody>
             </table>
           </div>
         )}
         <p className="text-sm mt-2" style={{ color: "var(--text-secondary)" }}>
-          Los porcentajes de cada proyecto quedan fijos al registrarlo: si después cambias la tabla
-          de Porcentajes, estos bonos no se alteran.
+          {soloLectura
+            ? "El porcentaje de cada proyecto queda fijo al momento de registrarlo."
+            : "Los porcentajes de cada proyecto quedan fijos al registrarlo: si después cambias la tabla de Porcentajes, estos bonos no se alteran."}
         </p>
       </Tarjeta>
     </div>

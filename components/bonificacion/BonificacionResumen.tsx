@@ -3,11 +3,13 @@
 import {
   PROFESIONALES,
   calcularResumen,
+  formatoFecha,
   formatoMoneda,
   pagosPorMes,
   type BonifConfig,
   type BonifPago,
   type BonifProyecto,
+  type Profesional,
 } from "@/lib/bonificacion";
 import { CampoFecha, CampoNumero, ESTILO_TD, ESTILO_TH, Tarjeta } from "./CamposBonificacion";
 
@@ -16,13 +18,18 @@ export function BonificacionResumen({
   proyectos,
   pagos,
   onGuardarConfig,
+  soloLectura = false,
+  visibles = PROFESIONALES,
 }: {
   config: BonifConfig;
   proyectos: BonifProyecto[];
   pagos: BonifPago[];
   onGuardarConfig: (parche: Partial<BonifConfig>) => void;
+  soloLectura?: boolean;
+  visibles?: readonly Profesional[];
 }) {
-  const resumen = calcularResumen(config, proyectos, pagos);
+  const claves = visibles.map((v) => v.clave);
+  const resumen = calcularResumen(config, proyectos, pagos).filter((r) => claves.includes(r.clave));
   const cuadro = pagosPorMes(pagos, config.mes_inicio_pagos);
 
   const total = resumen.reduce(
@@ -42,25 +49,35 @@ export function BonificacionResumen({
           Lo que ya se les debía antes de empezar a registrar proyectos en esta pestaña.
         </p>
         <div className="flex flex-wrap gap-4 items-end">
-          {PROFESIONALES.map((p) => (
+          {visibles.map((p) => (
             <div key={p.clave}>
               <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
                 {p.nombre}
               </label>
-              <CampoNumero
-                valor={config[`deuda_${p.clave}` as const]}
-                onGuardar={(n) => onGuardarConfig({ [`deuda_${p.clave}`]: n })}
-              />
+              {soloLectura ? (
+                <p className="text-base font-medium">
+                  {formatoMoneda(config[`deuda_${p.clave}` as const])}
+                </p>
+              ) : (
+                <CampoNumero
+                  valor={config[`deuda_${p.clave}` as const]}
+                  onGuardar={(n) => onGuardarConfig({ [`deuda_${p.clave}`]: n })}
+                />
+              )}
             </div>
           ))}
           <div>
             <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
               Fecha de la deuda
             </label>
-            <CampoFecha
-              valor={config.fecha_deuda}
-              onGuardar={(f) => onGuardarConfig({ fecha_deuda: f })}
-            />
+            {soloLectura ? (
+              <p className="text-base">{formatoFecha(config.fecha_deuda) || "—"}</p>
+            ) : (
+              <CampoFecha
+                valor={config.fecha_deuda}
+                onGuardar={(f) => onGuardarConfig({ fecha_deuda: f })}
+              />
+            )}
           </div>
         </div>
       </Tarjeta>
@@ -98,13 +115,15 @@ export function BonificacionResumen({
                   </td>
                 </tr>
               ))}
-              <tr className="font-medium">
-                <td className="py-2 pr-3">TOTAL</td>
-                <td className="py-2 px-3 text-right">{formatoMoneda(total.deuda)}</td>
-                <td className="py-2 px-3 text-right">{formatoMoneda(total.bonos)}</td>
-                <td className="py-2 px-3 text-right">{formatoMoneda(total.pagos)}</td>
-                <td className="py-2 px-3 text-right">{formatoMoneda(total.saldo)}</td>
-              </tr>
+              {resumen.length > 1 && (
+                <tr className="font-medium">
+                  <td className="py-2 pr-3">TOTAL</td>
+                  <td className="py-2 px-3 text-right">{formatoMoneda(total.deuda)}</td>
+                  <td className="py-2 px-3 text-right">{formatoMoneda(total.bonos)}</td>
+                  <td className="py-2 px-3 text-right">{formatoMoneda(total.pagos)}</td>
+                  <td className="py-2 px-3 text-right">{formatoMoneda(total.saldo)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -118,10 +137,14 @@ export function BonificacionResumen({
           <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
             Mes de inicio del cuadro
           </label>
-          <CampoFecha
-            valor={config.mes_inicio_pagos}
-            onGuardar={(f) => onGuardarConfig({ mes_inicio_pagos: f })}
-          />
+          {soloLectura ? (
+            <p className="text-base">{formatoFecha(config.mes_inicio_pagos) || "—"}</p>
+          ) : (
+            <CampoFecha
+              valor={config.mes_inicio_pagos}
+              onGuardar={(f) => onGuardarConfig({ mes_inicio_pagos: f })}
+            />
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-base">
@@ -130,14 +153,16 @@ export function BonificacionResumen({
                 <th className="text-left font-normal py-2 pr-3 text-sm" style={ESTILO_TH}>
                   Mes
                 </th>
-                {PROFESIONALES.map((p) => (
+                {visibles.map((p) => (
                   <th key={p.clave} className="text-right font-normal py-2 px-3 text-sm" style={ESTILO_TH}>
                     {p.nombre}
                   </th>
                 ))}
-                <th className="text-right font-normal py-2 px-3 text-sm" style={ESTILO_TH}>
-                  Total
-                </th>
+                {visibles.length > 1 && (
+                  <th className="text-right font-normal py-2 px-3 text-sm" style={ESTILO_TH}>
+                    Total
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -146,34 +171,40 @@ export function BonificacionResumen({
                   <td className="py-1.5 pr-3" style={ESTILO_TD}>
                     {f.etiqueta}
                   </td>
-                  {PROFESIONALES.map((p) => (
+                  {visibles.map((p) => (
                     <td key={p.clave} className="py-1.5 px-3 text-right" style={ESTILO_TD}>
                       {f.montos[p.clave] ? formatoMoneda(f.montos[p.clave]) : "—"}
                     </td>
                   ))}
-                  <td className="py-1.5 px-3 text-right" style={ESTILO_TD}>
-                    {f.total ? formatoMoneda(f.total) : "—"}
-                  </td>
+                  {visibles.length > 1 && (
+                    <td className="py-1.5 px-3 text-right" style={ESTILO_TD}>
+                      {f.total ? formatoMoneda(f.total) : "—"}
+                    </td>
+                  )}
                 </tr>
               ))}
               <tr className="font-medium">
                 <td className="py-2 pr-3">TOTAL</td>
-                {PROFESIONALES.map((p) => (
+                {visibles.map((p) => (
                   <td key={p.clave} className="py-2 px-3 text-right">
                     {formatoMoneda(cuadro.totales[p.clave])}
                   </td>
                 ))}
-                <td className="py-2 px-3 text-right">{formatoMoneda(cuadro.total)}</td>
+                {visibles.length > 1 && (
+                  <td className="py-2 px-3 text-right">{formatoMoneda(cuadro.total)}</td>
+                )}
               </tr>
               {cuadro.totalFuera > 0 && (
                 <tr style={{ color: "var(--status-overdue-text)" }}>
                   <td className="py-2 pr-3">Pagos no incluidos en el cuadro</td>
-                  {PROFESIONALES.map((p) => (
+                  {visibles.map((p) => (
                     <td key={p.clave} className="py-2 px-3 text-right">
                       {formatoMoneda(cuadro.fuera[p.clave])}
                     </td>
                   ))}
-                  <td className="py-2 px-3 text-right">{formatoMoneda(cuadro.totalFuera)}</td>
+                  {visibles.length > 1 && (
+                    <td className="py-2 px-3 text-right">{formatoMoneda(cuadro.totalFuera)}</td>
+                  )}
                 </tr>
               )}
             </tbody>

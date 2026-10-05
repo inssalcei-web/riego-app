@@ -8,6 +8,7 @@ export const PROFESIONALES = [
   { clave: "elizabeth", nombre: "Elizabeth" },
 ] as const;
 
+export type Profesional = (typeof PROFESIONALES)[number];
 export type ClaveProfesional = (typeof PROFESIONALES)[number]["clave"];
 export type NombreProfesional = (typeof PROFESIONALES)[number]["nombre"];
 
@@ -254,4 +255,60 @@ export function pagosPorMes(pagos: BonifPago[], mesInicio: string | null): Pagos
   const totalFuera = fuera.oliver + fuera.valentina + fuera.elizabeth;
 
   return { filas, totales, total, fuera, totalFuera };
+}
+
+
+// ---------- Vista de un profesional (solo lo suyo) ----------
+// La base de datos le entrega únicamente su propia información
+// (función bonif_mi_panel). Acá se convierte a las mismas formas que
+// usa la vista de gestión, dejando en 0 los porcentajes y deudas
+// de los demás, para reutilizar los mismos cálculos y tablas.
+
+export type PanelPropio = {
+  profesional: Profesional;
+  config: BonifConfig;
+  proyectos: BonifProyecto[];
+  pagos: BonifPago[];
+};
+
+export function aPanelPropio(json: any): PanelPropio | null {
+  if (!json || typeof json !== "object") return null;
+  const prof = PROFESIONALES.find((p) => p.nombre === json.profesional);
+  if (!prof) return null;
+
+  const config: BonifConfig = {
+    deuda_oliver: 0,
+    deuda_valentina: 0,
+    deuda_elizabeth: 0,
+    fecha_deuda: json.config?.fecha_deuda ?? null,
+    mes_inicio_pagos: json.config?.mes_inicio_pagos ?? null,
+  };
+  config[`deuda_${prof.clave}` as const] = num(json.config?.deuda);
+
+  const proyectos: BonifProyecto[] = (json.proyectos ?? []).map((f: any) => {
+    const base = {
+      id: f.id,
+      proyecto_id: null,
+      codigo_proyecto: f.codigo_proyecto ?? null,
+      programa: f.programa,
+      agricultor: f.agricultor,
+      fecha_adjudicacion: f.fecha_adjudicacion,
+      monto_total: num(f.monto_total),
+      pct_oliver: 0,
+      pct_valentina: 0,
+      pct_elizabeth: 0,
+    };
+    base[`pct_${prof.clave}` as const] = num(f.pct);
+    return base;
+  });
+
+  const pagos: BonifPago[] = (json.pagos ?? []).map((f: any) => ({
+    id: f.id,
+    fecha: f.fecha,
+    trabajador: prof.nombre,
+    monto: num(f.monto),
+    detalle: f.detalle ?? null,
+  }));
+
+  return { profesional: prof, config, proyectos, pagos };
 }

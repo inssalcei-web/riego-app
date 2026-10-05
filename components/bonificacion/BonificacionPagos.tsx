@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   PROFESIONALES,
+  formatoFecha,
   formatoMoneda,
   hoyISO,
   type BonifPago,
@@ -25,7 +26,9 @@ export function BonificacionPagos({
   onAgregar,
   onEditar,
   onBorrar,
+  soloLectura = false,
 }: {
+  soloLectura?: boolean;
   pagos: BonifPago[];
   onAgregar: (datos: Omit<BonifPago, "id">) => Promise<boolean>;
   onEditar: (id: string, parche: Partial<BonifPago>) => void;
@@ -62,6 +65,7 @@ export function BonificacionPagos({
 
   return (
     <div>
+      {!soloLectura && (
       <Tarjeta titulo="Registrar pago">
         <form onSubmit={registrar} className="flex flex-wrap gap-3 items-end">
           <div>
@@ -128,6 +132,7 @@ export function BonificacionPagos({
           </button>
         </form>
       </Tarjeta>
+      )}
 
       <Tarjeta titulo={`Pagos realizados (${pagos.length})`}>
         {pagos.length === 0 ? (
@@ -139,16 +144,30 @@ export function BonificacionPagos({
             <table className="w-full text-base">
               <thead>
                 <tr>
-                  {["Fecha", "Trabajador", "Monto", "Detalle"].map((t) => (
+                  {(soloLectura ? ["Fecha", "Monto", "Detalle"] : ["Fecha", "Trabajador", "Monto", "Detalle"]).map((t) => (
                     <th key={t} className="text-left font-normal py-2 px-2 text-sm" style={ESTILO_TH}>
                       {t}
                     </th>
                   ))}
-                  <th style={ESTILO_TH}></th>
+                  {!soloLectura && <th style={ESTILO_TH}></th>}
                 </tr>
               </thead>
               <tbody>
-                {ordenados.map((p) => (
+                {soloLectura &&
+                  ordenados.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2 px-2 whitespace-nowrap" style={ESTILO_TD}>
+                        {formatoFecha(p.fecha)}
+                      </td>
+                      <td className="py-2 px-2 whitespace-nowrap" style={ESTILO_TD}>
+                        {formatoMoneda(p.monto)}
+                      </td>
+                      <td className="py-2 px-2" style={ESTILO_TD}>
+                        {p.detalle ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                {!soloLectura && ordenados.map((p) => (
                   <tr key={p.id}>
                     <td className="py-2 px-2" style={ESTILO_TD}>
                       <CampoFecha
@@ -193,11 +212,11 @@ export function BonificacionPagos({
                   </tr>
                 ))}
                 <tr className="font-medium">
-                  <td className="py-2 px-2" colSpan={2}>
+                  <td className="py-2 px-2" colSpan={soloLectura ? 1 : 2}>
                     TOTAL PAGADO
                   </td>
                   <td className="py-2 px-2">{formatoMoneda(totalPagado)}</td>
-                  <td colSpan={2}></td>
+                  <td colSpan={soloLectura ? 1 : 2}></td>
                 </tr>
               </tbody>
             </table>
