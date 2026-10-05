@@ -9,7 +9,6 @@ import {
   aPrograma,
   aPanelPropio,
   aProyecto,
-  type ProyectoApp,
 } from "@/lib/bonificacion";
 
 const ROLES_GESTION_BONIFICACION = ["gerente_general", "administrador"];
@@ -56,22 +55,17 @@ export default async function BonificacionPage() {
             proyectosIniciales={panel.proyectos}
             pagosIniciales={panel.pagos}
             configInicial={panel.config}
-            proyectosApp={[]}
           />
         </main>
       </div>
     );
   }
 
-  const [programas, proyectos, pagos, config, proyectosApp] = await Promise.all([
+  const [programas, proyectos, pagos, config] = await Promise.all([
     supabase.from("bonif_programas").select("*").order("orden", { ascending: true }),
     supabase.from("bonif_proyectos").select("*").order("fecha_adjudicacion", { ascending: false }),
     supabase.from("bonif_pagos").select("*").order("fecha", { ascending: false }),
     supabase.from("bonif_config").select("*").eq("id", 1).maybeSingle(),
-    supabase
-      .from("proyectos")
-      .select("id, codigo_proyecto, nombre_agricultor, datos_formulario")
-      .order("codigo_proyecto", { ascending: true }),
   ]);
 
   const errorTablas = programas.error || proyectos.error || pagos.error || config.error;
@@ -93,23 +87,13 @@ export default async function BonificacionPage() {
     );
   }
 
-  const listaProyectosApp: ProyectoApp[] = (proyectosApp.data ?? []).map((p: any) => {
-    const monto = Number(p.datos_formulario?.monto_total_proyecto);
-    return {
-      id: p.id,
-      codigo_proyecto: p.codigo_proyecto ?? "",
-      nombre_agricultor: p.nombre_agricultor ?? "",
-      monto_total: Number.isFinite(monto) && monto > 0 ? monto : null,
-    };
-  });
-
   return (
     <div className="min-h-screen">
       <NavBar />
       <main className="p-4 sm:p-5 max-w-6xl mx-auto">
         <p className="font-medium text-lg mb-1">Bonificación Profesionales</p>
         <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-          Registro de proyectos adjudicados, bonos generados y pagos a los profesionales.
+          Proyectos aprobados (cargados automáticamente en la etapa 17), bonos generados y pagos a los profesionales.
         </p>
         <BonificacionProfesionales
           usuarioId={usuario.id}
@@ -117,7 +101,6 @@ export default async function BonificacionPage() {
           proyectosIniciales={(proyectos.data ?? []).map(aProyecto)}
           pagosIniciales={(pagos.data ?? []).map(aPago)}
           configInicial={aConfig(config.data)}
-          proyectosApp={listaProyectosApp}
         />
       </main>
     </div>

@@ -10,10 +10,17 @@ export function ChecklistPanel({
   proyectoId,
   itemsIniciales,
   usuarioId,
+  esEtapaAprobacion = false,
+  bloqueoMensaje = null,
 }: {
   proyectoId: string;
   itemsIniciales: ChecklistItemConEstado[];
   usuarioId: string;
+  // Etapa 17 (Revisión de resultados): al completarla se carga sola
+  // la bonificación de los profesionales.
+  esEtapaAprobacion?: boolean;
+  // Si viene un mensaje, el botón "Completar etapa" queda bloqueado.
+  bloqueoMensaje?: string | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -23,6 +30,7 @@ export function ChecklistPanel({
   const [error, setError] = useState<string | null>(null);
 
   const faltaObligatorio = items.some((i) => i.obligatorio && !i.completado);
+  const bloqueado = faltaObligatorio || !!bloqueoMensaje;
 
   async function toggleItem(item: ChecklistItemConEstado) {
     if (item.usuario_asignado_id && item.usuario_asignado_id !== usuarioId) {
@@ -107,6 +115,15 @@ export function ChecklistPanel({
     }
 
     sessionStorage.setItem("riego-app-etapa-completada", "1");
+
+    // Al aprobar la etapa 17 se confirma si la bonificación quedó
+    // cargada (la pantalla siguiente muestra la leyenda).
+    if (esEtapaAprobacion) {
+      const { data: cargada } = await supabase.rpc("bonif_proyecto_cargado", {
+        p_proyecto_id: proyectoId,
+      });
+      sessionStorage.setItem("riego-app-bonificacion", cargada ? "cargada" : "no_cargada");
+    }
     router.push("/mis-tareas");
     router.refresh();
   }
@@ -164,6 +181,12 @@ export function ChecklistPanel({
         })}
       </div>
 
+      {bloqueoMensaje && (
+        <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
+          {bloqueoMensaje}
+        </p>
+      )}
+
       {error && (
         <p className="text-sm mb-2" style={{ color: "var(--status-overdue-text)" }}>
           {error}
@@ -172,16 +195,18 @@ export function ChecklistPanel({
 
       <button
         onClick={completarEtapa}
-        disabled={faltaObligatorio || enviando}
+        disabled={bloqueado || enviando}
         className="w-full h-10 rounded-lg text-base font-medium"
         style={{
-          background: faltaObligatorio ? "var(--surface-page)" : "#3B82F6",
-          color: faltaObligatorio ? "var(--text-secondary)" : "#fff",
-          border: faltaObligatorio ? "1px solid var(--border-default)" : "none",
+          background: bloqueado ? "var(--surface-page)" : "#3B82F6",
+          color: bloqueado ? "var(--text-secondary)" : "#fff",
+          border: bloqueado ? "1px solid var(--border-default)" : "none",
         }}
       >
         {enviando
           ? "Procesando..."
+          : bloqueoMensaje
+          ? "Completar etapa · falta el programa de bonificación"
           : faltaObligatorio
           ? "Completar etapa · faltan obligatorios"
           : "Completar etapa"}

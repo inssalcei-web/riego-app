@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CAMPOS_MONTOS_POSTULACION } from "@/lib/montos-postulacion-config";
 
@@ -8,12 +9,22 @@ export function MontosPostulacionPanel({
   proyectoId,
   esAdministrador,
   datosIniciales,
+  programas = [],
 }: {
   proyectoId: string;
   esAdministrador: boolean;
   datosIniciales: Record<string, any>;
+  // Nombres de los programas de bonificación (tabla de Porcentajes).
+  programas?: string[];
 }) {
   const supabase = createClient();
+  const router = useRouter();
+
+  const [programa, setPrograma] = useState<string>(String(datosIniciales?.programa_bonificacion ?? ""));
+  // Si el programa guardado ya no está en la lista (se borró o
+  // renombró), se sigue mostrando para no perder el dato.
+  const opcionesPrograma =
+    programa && !programas.includes(programa) ? [programa, ...programas] : programas;
 
   const [montos, setMontos] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -28,10 +39,13 @@ export function MontosPostulacionPanel({
     setGuardado(false);
     await supabase
       .from("proyectos")
-      .update({ datos_formulario: { ...datosIniciales, ...montos } })
+      .update({ datos_formulario: { ...datosIniciales, ...montos, programa_bonificacion: programa } })
       .eq("id", proyectoId);
     setGuardando(false);
     setGuardado(true);
+    // Refresca la pantalla para que el botón "Completar etapa" se
+    // desbloquee apenas el programa quede guardado.
+    router.refresh();
   }
 
   return (
@@ -66,6 +80,34 @@ export function MontosPostulacionPanel({
             />
           </div>
         ))}
+      </div>
+
+      <div className="mb-3">
+        <label className="text-sm block mb-1" style={{ color: "var(--text-secondary)" }}>
+          Programa de bonificación <span style={{ color: "var(--status-overdue-text)" }}>*</span>
+        </label>
+        <select
+          disabled={!esAdministrador}
+          value={programa}
+          onChange={(e) => setPrograma(e.target.value)}
+          className="w-full h-9 px-2 rounded-md border text-base"
+          style={{
+            borderColor: "var(--border-default)",
+            background: esAdministrador ? "var(--surface-card)" : "var(--border-default)",
+            opacity: esAdministrador ? 1 : 0.7,
+          }}
+        >
+          <option value="">Selecciona un programa</option>
+          {opcionesPrograma.map((nombre) => (
+            <option key={nombre} value={nombre}>
+              {nombre}
+            </option>
+          ))}
+        </select>
+        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          Define los porcentajes de bonificación de los profesionales. El bono se calcula sobre el
+          Monto de formulación y se carga solo al aprobar la etapa 17.
+        </p>
       </div>
 
       {esAdministrador && (

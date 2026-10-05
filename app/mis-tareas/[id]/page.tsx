@@ -42,6 +42,18 @@ export default async function DetalleProyectoPage({
     .eq("id", proyecto.etapa_actual_id)
     .single();
 
+  // Nombres de los programas de bonificación, para el selector de la
+  // etapa 15 (solo hace falta en esa etapa).
+  let nombresProgramas: string[] = [];
+  if (etapa?.requiere_montos) {
+    const { data: programas } = await supabase
+      .from("bonif_programas")
+      .select("nombre")
+      .order("orden", { ascending: true });
+    nombresProgramas = (programas ?? []).map((p: any) => p.nombre);
+  }
+  const programaElegido = String(proyecto.datos_formulario?.programa_bonificacion ?? "").trim();
+
   return (
     <div className="min-h-screen">
       <NavBar />
@@ -100,11 +112,22 @@ export default async function DetalleProyectoPage({
               proyectoId={id}
               esAdministrador={usuario.rol_id === "administrador"}
               datosIniciales={proyecto.datos_formulario ?? {}}
+              programas={nombresProgramas}
             />
           )}
 
           {!proyecto.finalizado && (!etapa || etapa.tipo_accion === "checkbox") && (
-            <ChecklistPanelServerWrapper proyectoId={id} etapaId={proyecto.etapa_actual_id} usuarioId={usuario.id} />
+            <ChecklistPanelServerWrapper
+              proyectoId={id}
+              etapaId={proyecto.etapa_actual_id}
+              usuarioId={usuario.id}
+              esEtapaAprobacion={etapa?.orden === 17}
+              bloqueoMensaje={
+                etapa?.requiere_montos && !programaElegido
+                  ? "Falta elegir el programa de bonificación (en “Montos de postulación”, más arriba)."
+                  : null
+              }
+            />
           )}
 
           {ROLES_GESTION.includes(usuario.rol_id) && (
@@ -143,10 +166,14 @@ async function ChecklistPanelServerWrapper({
   proyectoId,
   etapaId,
   usuarioId,
+  esEtapaAprobacion,
+  bloqueoMensaje,
 }: {
   proyectoId: string;
   etapaId: number;
   usuarioId: string;
+  esEtapaAprobacion: boolean;
+  bloqueoMensaje: string | null;
 }) {
   const supabase = await createClient();
 
@@ -186,7 +213,15 @@ async function ChecklistPanelServerWrapper({
     };
   });
 
-  return <ChecklistPanel proyectoId={proyectoId} itemsIniciales={items} usuarioId={usuarioId} />;
+  return (
+    <ChecklistPanel
+      proyectoId={proyectoId}
+      itemsIniciales={items}
+      usuarioId={usuarioId}
+      esEtapaAprobacion={esEtapaAprobacion}
+      bloqueoMensaje={bloqueoMensaje}
+    />
+  );
 }
 
 async function DocumentosLegalesPanelServerWrapper({

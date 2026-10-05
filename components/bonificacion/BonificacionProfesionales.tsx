@@ -12,7 +12,6 @@ import {
   type BonifPrograma,
   type BonifProyecto,
   type Profesional,
-  type ProyectoApp,
   PROFESIONALES,
 } from "@/lib/bonificacion";
 import { BonificacionResumen } from "./BonificacionResumen";
@@ -35,7 +34,6 @@ export function BonificacionProfesionales({
   proyectosIniciales,
   pagosIniciales,
   configInicial,
-  proyectosApp,
   soloLectura = false,
   visibles = PROFESIONALES,
 }: {
@@ -47,7 +45,6 @@ export function BonificacionProfesionales({
   proyectosIniciales: BonifProyecto[];
   pagosIniciales: BonifPago[];
   configInicial: BonifConfig;
-  proyectosApp: ProyectoApp[];
 }) {
   const supabase = createClient();
 
@@ -76,40 +73,8 @@ export function BonificacionProfesionales({
   }
 
   // ---------- Proyectos ----------
-  async function agregarProyecto(
-    datos: Omit<BonifProyecto, "id">
-  ): Promise<boolean> {
-    setError(null);
-    const { data, error: e } = await supabase
-      .from("bonif_proyectos")
-      .insert({ ...datos, creado_por: usuarioId })
-      .select()
-      .single();
-    if (e || !data) {
-      fallo(
-        e?.code === "23505"
-          ? "Ese proyecto ya está registrado en la bonificación"
-          : "No se pudo registrar el proyecto",
-        e?.code === "23505" ? undefined : e?.message
-      );
-      return false;
-    }
-    setProyectos((prev) => [...prev, aProyecto(data)]);
-    return true;
-  }
-
-  async function editarProyecto(id: string, parche: Partial<BonifProyecto>) {
-    setError(null);
-    const { data, error: e } = await supabase
-      .from("bonif_proyectos")
-      .update(parche)
-      .eq("id", id)
-      .select()
-      .maybeSingle();
-    if (e || !data) return fallo("No se pudo guardar el cambio", e?.message);
-    setProyectos((prev) => prev.map((p) => (p.id === id ? aProyecto(data) : p)));
-  }
-
+  // Los proyectos se cargan solos al aprobar la etapa 17; acá solo
+  // se pueden eliminar (por ejemplo ante un error).
   async function borrarProyecto(id: string) {
     setError(null);
     const { error: e } = await supabase.from("bonif_proyectos").delete().eq("id", id);
@@ -245,11 +210,7 @@ export function BonificacionProfesionales({
       )}
       {seccion === "proyectos" && (
         <BonificacionProyectos
-          programas={programas}
           proyectos={proyectos}
-          proyectosApp={proyectosApp}
-          onAgregar={agregarProyecto}
-          onEditar={editarProyecto}
           onBorrar={borrarProyecto}
           soloLectura={soloLectura}
           visibles={visibles}
